@@ -7,7 +7,7 @@
 //     int nroEstacoes; // número de estações cadastradas
 //     int nroPares; // número de pares de estações cadastrados
 // };
-
+    
 // struct _dados {
 //     char removido;
 //     int proximo;
@@ -137,7 +137,12 @@ void lerCsv() {
         if (info==NULL) break;
     }
 
-    //fwrite(cabecalho, sizeof(struct _cabecalho), 1, bin);
+    fwrite(&cabecalho->status, sizeof(char), 1, bin);
+    fwrite(&cabecalho->topo, sizeof(int), 1, bin);
+    fwrite(&cabecalho->proxRRN, sizeof(int), 1, bin);
+    fwrite(&cabecalho->nroEstacoes, sizeof(int), 1, bin);
+    fwrite(&cabecalho->nroPares, sizeof(int), 1, bin);
+    
     for (int i = 0; i < cabecalho->proxRRN; i++) {
         long pos = ftell(bin);
         fwrite(&vetorDados[i]->removido, sizeof(char), 1, bin);
