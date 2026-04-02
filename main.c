@@ -1,6 +1,6 @@
-#include <crud.h>
+#include "crud.h"
 
 int main(int argc, char *argv[]) {
-    printf("Hello World!\n");
+    lerCsv();
     return 0;
 }
