@@ -58,13 +58,13 @@ void lerCsv() {
 
     FILE *csv = fopen(nomeCsv, "r");
     if (csv == NULL) {
-        fprintf(stderr, "Falha no processamento do arquivo.");
+        printf("Falha no processamento do arquivo.");
         return;
     }
 
     FILE *bin = fopen(nomeBin, "wb");
     if (bin == NULL) {
-        fprintf(stderr, "Falha no processamento do arquivo.");
+        printf("Falha no processamento do arquivo.");
         fclose(csv);
         return;
     }
