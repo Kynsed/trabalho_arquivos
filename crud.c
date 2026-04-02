@@ -73,7 +73,7 @@ void lerCsv() {
     struct _dados **vetorDados = NULL;
     int c;
 
-    fgets(skip, 102, csv); // ler e ignorar a primeira linha do CSV (cabeçalho)
+    fgets(skip, 102, csv); // ler e ignorar a primeira linha do CSV
 
     while (1) {
         info = lerInfo(csv);
@@ -119,17 +119,18 @@ void lerCsv() {
 
         info = lerInfo(csv);
         if (strlen(info) > 0)
-        novoDado->codLinhaIntegra = atoi(info);
+            novoDado->codLinhaIntegra = atoi(info);
         free(info);
 
         info = lerInfo(csv);
-        if (info &&strlen(info) > 0)
+        if (info && strlen(info) > 0)
             novoDado->codEstIntegra = atoi(info);
         free(info);
 
+        // ler a quebra de linha
         info = lerInfo(csv);
         free(info);
-        
+
         cabecalho->proxRRN++;
         vetorDados = (struct _dados**)realloc(vetorDados, cabecalho->proxRRN * sizeof(struct _dados*));
         vetorDados[cabecalho->proxRRN - 1] = novoDado;
@@ -142,9 +143,8 @@ void lerCsv() {
     fwrite(&cabecalho->proxRRN, sizeof(int), 1, bin);
     fwrite(&cabecalho->nroEstacoes, sizeof(int), 1, bin);
     fwrite(&cabecalho->nroPares, sizeof(int), 1, bin);
-    
+
     for (int i = 0; i < cabecalho->proxRRN; i++) {
-        long pos = ftell(bin);
         fwrite(&vetorDados[i]->removido, sizeof(char), 1, bin);
         fwrite(&vetorDados[i]->proximo, sizeof(int), 1, bin);
         fwrite(&vetorDados[i]->codEstacao, sizeof(int), 1, bin);
@@ -157,10 +157,8 @@ void lerCsv() {
         fwrite(vetorDados[i]->nomeEstacao, sizeof(char), vetorDados[i]->tamNomeEstacao, bin);
         fwrite(&vetorDados[i]->tamNomelinha, sizeof(int), 1, bin);
         fwrite(vetorDados[i]->nomeLinha, sizeof(char), vetorDados[i]->tamNomelinha, bin);
-        long pad = ftell(bin) - pos;
-        while (pad < 80) {
+        for (int j = 0; j < 80 - 37 - vetorDados[i]->tamNomeEstacao - vetorDados[i]->tamNomelinha; j++) {
             fputc('$', bin);
-            pad++;
         }
     }
 
@@ -268,4 +266,8 @@ void ScanQuoteString(char *str) {
     } else { // EOF
         strcpy(str, "");
     }
+}
+
+void busca() {
+
 }

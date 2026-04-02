@@ -33,3 +33,4 @@ char *lerInfo(FILE *csv);
 int novaEstacao(struct _dados **vetorDados, int n, const char *nome);
 void BinarioNaTela(char *arquivo);
 void liberarVetorDados(struct _dados **vetorDados, int tamanho);
+void busca();
