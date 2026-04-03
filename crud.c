@@ -269,5 +269,14 @@ void ScanQuoteString(char *str) {
 }
 
 void busca() {
+    char nomeArq[100];
+    int qntBuscas;
 
+    scanf("%s %d", nomeArq, &qntBuscas);
+
+    for (int i = 0; i < qntBuscas; i++) {
+        int qntCampos;
+        scanf("%d", &qntCampos);
+        char campos[qntCampos][100];
+    }
 }
