@@ -540,3 +540,155 @@ void printDados(Dados *data) {
         // codEstIntegra
         (data->codEstIntegra == -1) ? printf("NULO") : printf("%d", data->codEstIntegra);
 }
+
+void inserir(char *arquivoEntrada, int qntInsercoes) {
+    FILE *input_file;
+
+    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "r+b"))) 
+    {
+        printf("Falha no processamento do arquivo.");
+        return;
+    }
+
+    Cabecalho cabecalho;
+
+    fread(&cabecalho.status, sizeof(char), 1, input_file);
+    if (cabecalho.status == '0') {
+        printf("Falha no processamento do arquivo.\n");
+        fclose(input_file);
+        return;
+    }
+
+    fread(&cabecalho.topo, sizeof(int), 1, input_file);
+    fread(&cabecalho.proxRRN, sizeof(int), 1, input_file);
+    fread(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
+    fread(&cabecalho.nroPares, sizeof(int), 1, input_file);
+
+    for (int i = 0; i < qntInsercoes; i++) {
+        Dados *novoDado = criarDados();
+
+        char valor[50];
+
+        scanf(" %s", valor);
+        novoDado->codEstacao = atoi(valor);
+
+        ScanQuoteString(valor);
+        if (!strcmp(valor, "NULO")) {
+            printf("Falha no processamento do arquivo.\n");
+            free(novoDado);
+            break;
+        } else {
+            novoDado->tamNomeEstacao = strlen(valor);
+            novoDado->nomeEstacao = (char*)malloc((strlen(valor)+1) * sizeof(char));
+            strcpy(novoDado->nomeEstacao, valor);
+
+            fseek(input_file, 46, SEEK_SET);
+            int existe = 0;
+            for (int j = 0; j < cabecalho.proxRRN; j++) {
+                int tamanho;
+                fread(&tamanho, sizeof(int), 1, input_file);
+                char nome[tamanho + 1];
+                fread(nome, sizeof(char), tamanho, input_file);
+                nome[tamanho] = '\0';
+
+                if (strcmp(nome, valor) == 0) {
+                    existe = 1;
+                    break;
+                } else {
+                    fseek(input_file, 80 - 4 - tamanho, SEEK_CUR);
+                }
+            }
+            if (!existe) {
+                cabecalho.nroEstacoes++;
+            }
+        }
+
+        scanf(" %s", valor);
+        if (!strcmp(valor, "NULO")) {
+            novoDado->codLinha = -1;
+        } else {
+            novoDado->codLinha = atoi(valor);
+        }
+
+        ScanQuoteString(valor);
+        if (!strcmp(valor, "NULO")) {
+            novoDado->tamNomelinha = 0;
+            novoDado->nomeLinha = NULL;
+        } else {
+            novoDado->tamNomelinha = strlen(valor);
+            novoDado->nomeLinha = (char*)malloc((strlen(valor)+1) * sizeof(char));
+            strcpy(novoDado->nomeLinha, valor);
+        }
+
+        scanf(" %s", valor);
+        if (!strcmp(valor, "NULO")) {
+            novoDado->codProxEstacao = -1;
+        } else {
+            novoDado->codProxEstacao = atoi(valor);
+            cabecalho.nroPares++;
+        }
+
+        scanf(" %s", valor);
+        if (!strcmp(valor, "NULO")) {
+            novoDado->distProxEstacao = -1;
+        } else {
+            novoDado->distProxEstacao = atoi(valor);
+        }
+
+        scanf(" %s", valor);
+        if (!strcmp(valor, "NULO")) {
+            novoDado->codLinhaIntegra = -1;
+        } else {
+            novoDado->codLinhaIntegra = atoi(valor);
+        }
+
+        scanf(" %s", valor);
+        if (!strcmp(valor, "NULO")) {
+            novoDado->codEstIntegra = -1;
+        } else {
+            novoDado->codEstIntegra = atoi(valor);
+        }
+
+        if (cabecalho.topo == -1) {
+            fseek(input_file, 0, SEEK_END);
+            cabecalho.proxRRN++;
+        } else {
+            fseek(input_file, 18 + 80*cabecalho.topo, SEEK_SET);
+            int proximo;
+            fread(&proximo, sizeof(int), 1, input_file);
+            cabecalho.topo = proximo;
+            fseek(input_file, -5, SEEK_CUR);
+        }
+
+        fwrite(&novoDado->removido, sizeof(char), 1, input_file);
+        fwrite(&novoDado->proximo, sizeof(int), 1, input_file);
+        fwrite(&novoDado->codEstacao, sizeof(int), 1, input_file);
+        fwrite(&novoDado->codLinha, sizeof(int), 1, input_file);
+        fwrite(&novoDado->codProxEstacao, sizeof(int), 1, input_file);
+        fwrite(&novoDado->distProxEstacao, sizeof(int), 1, input_file);
+        fwrite(&novoDado->codLinhaIntegra, sizeof(int), 1, input_file);
+        fwrite(&novoDado->codEstIntegra, sizeof(int), 1, input_file);
+        fwrite(&novoDado->tamNomeEstacao, sizeof(int), 1, input_file);
+        fwrite(novoDado->nomeEstacao, sizeof(char), novoDado->tamNomeEstacao, input_file);
+        fwrite(&novoDado->tamNomelinha, sizeof(int), 1, input_file);
+        fwrite(novoDado->nomeLinha, sizeof(char), novoDado->tamNomelinha, input_file);
+        for (int j = 0; j < 80 - 37 - novoDado->tamNomeEstacao - novoDado->tamNomelinha; j++) {
+            fputc('$', input_file); 
+        }
+
+        if (novoDado->nomeEstacao)
+            free(novoDado->nomeEstacao);
+        if (novoDado->nomeLinha)
+            free(novoDado->nomeLinha);
+        free(novoDado);
+    }
+    fseek(input_file, 1, SEEK_SET);
+    fwrite(&cabecalho.topo, sizeof(int), 1, input_file);
+    fwrite(&cabecalho.proxRRN, sizeof(int), 1, input_file);
+    fwrite(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
+    fwrite(&cabecalho.nroPares, sizeof(int), 1, input_file);
+
+    fclose(input_file);
+
+    BinarioNaTela(arquivoEntrada);
+}

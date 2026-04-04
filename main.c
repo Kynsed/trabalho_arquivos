@@ -18,6 +18,10 @@ int main(int argc, char *argv[]) {
             scanf(" %s %d", entradaBin, &qnt);
             busca(entradaBin, qnt);
             break;
+        case 5:
+            scanf(" %s %d", entradaBin, &qnt);
+            inserir(entradaBin, qnt);
+            break;
         default:
             printf("Escolha inválida.\n");
             break;

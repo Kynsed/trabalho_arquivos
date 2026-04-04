@@ -36,3 +36,4 @@ void liberarVetorDados(struct _dados **vetorDados, int tamanho);
 void busca(char *arquivoEntrada, int qntBuscas);
 void select_from(char *arquivoEntrada);
 void printDados(Dados *data);
+void inserir(char *arquivoEntrada, int qntInsercoes);
