@@ -30,7 +30,7 @@ void criarCabecalho(Cabecalho *cab);
 void criarDados(Dados *dados);
 void lerCsv();
 char *lerInfo(FILE *csv);
-int novaEstacao(char **nomes, int n, const char *nome);
+int novaEstacao(char **nomes, const char *nome, int n);
 void BinarioNaTela(char *arquivo);
 void liberarVetorDados(struct _dados **vetorDados, int tamanho);
 void busca(char *arquivoEntrada, int qntBuscas);

@@ -24,7 +24,7 @@ void criarDados(Dados *dados) {
 }
 
 void lerCsv() {
-    char nomeCsv[100], nomeBin[100], *info, skip[102];
+    char nomeCsv[100], nomeBin[100], *info, buffer[100];
     scanf("%s %s", nomeCsv, nomeBin);
 
     FILE *csv = fopen(nomeCsv, "r");
@@ -43,39 +43,37 @@ void lerCsv() {
     Cabecalho cabecalho;
     criarCabecalho(&cabecalho);
     Dados novoDado;
-    char **nomes = NULL;
+    char **nomes = NULL; // variavel usada para armazenar os nomes das estações e facilitar a contagem do nroEstacoes
 
+    // pular a primeira linha do CSV
     fseek(csv, 101, SEEK_CUR);
-    // fgets(NULL, 102, csv); // ler e ignorar a primeira linha do CSV
-    // for (int i = 0; i < 17; i++)
-    //     skip[i] = '_';
-    // skip[18] = '\0';
 
-    // pular cabecalho
+    // reservar espaco para o cabecalho
     fwrite("_________________", sizeof(char), 17, bin);
 
     while (1) {
-        info = lerInfo(csv);
-        if (info == NULL) break;
-
-
+        // inicializar os campos com os valores "nulos"
         criarDados(&novoDado);
 
+        // INÍCIO DA SESSÃO DE LEITURA DOS CAMPOS
+
+        info = lerInfo(csv);
         novoDado.codEstacao = atoi(info);
         free(info);
 
         info = lerInfo(csv);
         novoDado.tamNomeEstacao = strlen(info);
         novoDado.nomeEstacao = (char*)malloc((strlen(info)+1) * sizeof(char));
+        strcpy(novoDado.nomeEstacao, info);
         nomes = (char **)realloc(nomes, (cabecalho.proxRRN + 1) * sizeof(char *));
         nomes[cabecalho.proxRRN] = (char*)malloc((strlen(info)+1) * sizeof(char));
-
-        strcpy(novoDado.nomeEstacao, info);
         strcpy(nomes[cabecalho.proxRRN], info);
-        if (novaEstacao(nomes, cabecalho.proxRRN, info)) {
+        if (novaEstacao(nomes, info, cabecalho.proxRRN)) {
             cabecalho.nroEstacoes++;
         }
         free(info);
+
+        // a partir daqui vamos sempre checar se o campo é nulo
 
         info = lerInfo(csv);
         if (strlen(info) > 0) 
@@ -93,7 +91,7 @@ void lerCsv() {
         info = lerInfo(csv);
         if (strlen(info) > 0) {
             novoDado.codProxEstacao = atoi(info);
-            cabecalho.nroPares++;
+            cabecalho.nroPares++; // se codProxEstacao não for nulo incrementamos o nroPares
         }
         free(info);
 
@@ -118,6 +116,8 @@ void lerCsv() {
 
         cabecalho.proxRRN++;
 
+        // FIM DA LEITURA DOS CAMPOS, INÍCIO DA SESSÃO DE ESCRITA DO REGISTRO
+
         fwrite(&novoDado.removido, sizeof(char), 1, bin);
         fwrite(&novoDado.proximo, sizeof(int), 1, bin);
         fwrite(&novoDado.codEstacao, sizeof(int), 1, bin);
@@ -140,6 +140,7 @@ void lerCsv() {
         if (info==NULL) break;
     }
 
+    // retorna ao início do binário e insere o cabecalho
     fseek(bin, 0, SEEK_SET);
     fwrite(&cabecalho.status, sizeof(char), 1, bin);
     fwrite(&cabecalho.topo, sizeof(int), 1, bin);
@@ -158,6 +159,7 @@ void lerCsv() {
     free(nomes);
 }
 
+// lê 1 campo do csv
 char *lerInfo(FILE *csv) {
     char buffer[100];
     int i = 0;
@@ -165,24 +167,26 @@ char *lerInfo(FILE *csv) {
 
     while (1) {
         c = fgetc(csv);
+
+        // condição para parar de ler o campo
         if (c == ',' || c == '\n' || c == EOF || c == '\r') {
             break;
         }
         buffer[i++] = c;
     }
+    buffer[i] = '\0';
 
+    // retorna null para a detecção de EOF
     if (c == EOF) {
         return NULL;
     }
-
-    buffer[i] = '\0';
 
     char *info = (char *)malloc((i + 1) * sizeof(char));
     strcpy(info, buffer);
     return info;
 }
 
-int novaEstacao(char **nomes, int n, const char *nome) {
+int novaEstacao(char **nomes, const char *nome, int n) {
     for (int i = 0; i < n; i++) {
         if (strcmp(nomes[i], nome) == 0) {
             return 0;
