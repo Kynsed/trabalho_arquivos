@@ -24,7 +24,7 @@ void criarDados(Dados *dados) {
 }
 
 void lerCsv() {
-    char nomeCsv[100], nomeBin[100], *info, buffer[100];
+    char nomeCsv[100], nomeBin[100], buffer[100];
     scanf("%s %s", nomeCsv, nomeBin);
 
     FILE *csv = fopen(nomeCsv, "r");
@@ -57,62 +57,43 @@ void lerCsv() {
 
         // INÍCIO DA SESSÃO DE LEITURA DOS CAMPOS
 
-        info = lerInfo(csv);
-        novoDado.codEstacao = atoi(info);
-        free(info);
+        lerInfo(csv, buffer);
+        novoDado.codEstacao = atoi(buffer);
 
-        info = lerInfo(csv);
-        novoDado.tamNomeEstacao = strlen(info);
-        novoDado.nomeEstacao = (char*)malloc((strlen(info)+1) * sizeof(char));
-        strcpy(novoDado.nomeEstacao, info);
+        novoDado.tamNomeEstacao = lerInfo(csv, buffer);
+        novoDado.nomeEstacao = (char*)malloc((novoDado.tamNomeEstacao+1) * sizeof(char));
+        strcpy(novoDado.nomeEstacao, buffer);
         nomes = (char **)realloc(nomes, (cabecalho.proxRRN + 1) * sizeof(char *));
-        nomes[cabecalho.proxRRN] = (char*)malloc((strlen(info)+1) * sizeof(char));
-        strcpy(nomes[cabecalho.proxRRN], info);
-        if (novaEstacao(nomes, info, cabecalho.proxRRN)) {
+        nomes[cabecalho.proxRRN] = (char*)malloc((novoDado.tamNomeEstacao+1) * sizeof(char));
+        strcpy(nomes[cabecalho.proxRRN], buffer);
+        if (novaEstacao(nomes, buffer, cabecalho.proxRRN)) {
             cabecalho.nroEstacoes++;
         }
-        free(info);
 
         // a partir daqui vamos sempre checar se o campo é nulo
 
-        info = lerInfo(csv);
-        if (strlen(info) > 0) 
-            novoDado.codLinha = atoi(info);
-        free(info);
+        if (lerInfo(csv, buffer) > 0) 
+            novoDado.codLinha = atoi(buffer);
 
-        info = lerInfo(csv);
-        if (strlen(info) > 0) {
-            novoDado.tamNomelinha = strlen(info);
-            novoDado.nomeLinha = (char*)malloc((strlen(info)+1) * sizeof(char));
-            strcpy(novoDado.nomeLinha, info);
+        novoDado.tamNomelinha = lerInfo(csv, buffer);
+        if (novoDado.tamNomelinha > 0) {
+            novoDado.nomeLinha = (char*)malloc((novoDado.tamNomelinha+1) * sizeof(char));
+            strcpy(novoDado.nomeLinha, buffer);
         }
-        free(info);
 
-        info = lerInfo(csv);
-        if (strlen(info) > 0) {
-            novoDado.codProxEstacao = atoi(info);
+        if (lerInfo(csv, buffer) > 0) {
+            novoDado.codProxEstacao = atoi(buffer);
             cabecalho.nroPares++; // se codProxEstacao não for nulo incrementamos o nroPares
         }
-        free(info);
 
-        info = lerInfo(csv);
-        if (strlen(info) > 0)
-            novoDado.distProxEstacao = atoi(info);
-        free(info);
+        if (lerInfo(csv, buffer) > 0)
+            novoDado.distProxEstacao = atoi(buffer);
 
-        info = lerInfo(csv);
-        if (strlen(info) > 0)
-            novoDado.codLinhaIntegra = atoi(info);
-        free(info);
+        if (lerInfo(csv, buffer) > 0)
+            novoDado.codLinhaIntegra = atoi(buffer);
 
-        info = lerInfo(csv);
-        if (info && strlen(info) > 0)
-            novoDado.codEstIntegra = atoi(info);
-        free(info);
-
-        // ler a quebra de linha
-        info = lerInfo(csv);
-        free(info);
+        if (lerInfo(csv, buffer) > 0)
+            novoDado.codEstIntegra = atoi(buffer);
 
         cabecalho.proxRRN++;
 
@@ -137,7 +118,8 @@ void lerCsv() {
         free(novoDado.nomeEstacao);
         free(novoDado.nomeLinha);
 
-        if (info==NULL) break;
+        // ler a quebra de linha, se na verdade for EOF encerrar a leitura
+        if (lerInfo(csv, buffer) == -1) break;
     }
 
     // retorna ao início do binário e insere o cabecalho
@@ -159,9 +141,8 @@ void lerCsv() {
     free(nomes);
 }
 
-// lê 1 campo do csv
-char *lerInfo(FILE *csv) {
-    char buffer[100];
+// lê 1 campo do csv, retorna -1 se EOF, retorna o valor de strlen() caso contrário
+int lerInfo(FILE *csv, char buffer[100]) {
     int i = 0;
     int c;
 
@@ -176,14 +157,11 @@ char *lerInfo(FILE *csv) {
     }
     buffer[i] = '\0';
 
-    // retorna null para a detecção de EOF
     if (c == EOF) {
-        return NULL;
+        return -1;
     }
 
-    char *info = (char *)malloc((i + 1) * sizeof(char));
-    strcpy(info, buffer);
-    return info;
+    return i;
 }
 
 int novaEstacao(char **nomes, const char *nome, int n) {

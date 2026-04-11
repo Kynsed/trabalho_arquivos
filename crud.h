@@ -29,7 +29,7 @@ typedef struct _dados {
 void criarCabecalho(Cabecalho *cab);
 void criarDados(Dados *dados);
 void lerCsv();
-char *lerInfo(FILE *csv);
+int lerInfo(FILE *csv, char buffer[100]);
 int novaEstacao(char **nomes, const char *nome, int n);
 void BinarioNaTela(char *arquivo);
 void liberarVetorDados(struct _dados **vetorDados, int tamanho);
