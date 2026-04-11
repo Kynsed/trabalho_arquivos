@@ -26,14 +26,18 @@ typedef struct _dados {
     char *nomeLinha;
 }Dados;
 
-struct _cabecalho *criarCabecalho();
-struct _dados *criarDados();
+void criarCabecalho(Cabecalho *cab);
+void criarDados(Dados *dados);
 void lerCsv();
 char *lerInfo(FILE *csv);
-int novaEstacao(struct _dados **vetorDados, int n, const char *nome);
+int novaEstacao(char **nomes, int n, const char *nome);
 void BinarioNaTela(char *arquivo);
 void liberarVetorDados(struct _dados **vetorDados, int tamanho);
 void busca(char *arquivoEntrada, int qntBuscas);
 void select_from(char *arquivoEntrada);
+void delete_from(char *arquivoEntrada);
+void update(char *arquivoEntrada);
+int match_registro(Dados *dados, char vals[8][50]);
 void printDados(Dados *data);
 void inserir(char *arquivoEntrada, int qntInsercoes);
+void ScanQuoteString(char *str);
