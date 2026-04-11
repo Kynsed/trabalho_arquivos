@@ -41,3 +41,4 @@ int match_registro(Dados *dados, char vals[8][50]);
 void printDados(Dados *data);
 void inserir(char *arquivoEntrada, int qntInsercoes);
 void ScanQuoteString(char *str);
+void input_filtro(char campo[50], char valor[50], char vals[8][50]);

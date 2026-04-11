@@ -12,4 +12,4 @@ clean:
 
 run:
 	./programaTrab
-#valgrind --leak-check=yes -s --track-origins=yes ./programaTrab
+#svalgrind --leak-check=yes -s --track-origins=yes ./programaTrab

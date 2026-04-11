@@ -237,6 +237,36 @@ void ScanQuoteString(char *str) {
     }
 }
 
+void input_filtro(char campo[50], char valor[50], char vals[8][50]) {
+    scanf("%s", campo);
+
+    if (!strcmp(campo, "nomeEstacao") || !strcmp(campo, "nomeLinha")) 
+        ScanQuoteString(valor);
+    else {
+        scanf("%s", valor);
+
+        if (strcmp(valor, "NULO") == 0)
+            strcpy(valor, "-1");
+    }
+
+    if (!strcmp(campo, "codEstacao")) 
+        strcpy(vals[0], valor);
+    else if (!strcmp(campo, "nomeEstacao")) 
+        strcpy(vals[1], valor);
+    else if (!strcmp(campo, "codLinha")) 
+        strcpy(vals[2], valor);
+    else if (!strcmp(campo, "nomeLinha")) 
+        strcpy(vals[3], valor);
+    else if (!strcmp(campo, "codProxEstacao")) 
+        strcpy(vals[4], valor);
+    else if (!strcmp(campo, "distProxEstacao")) 
+        strcpy(vals[5], valor);
+    else if (!strcmp(campo, "codLinhaIntegra")) 
+        strcpy(vals[6], valor);
+    else if (!strcmp(campo, "codEstIntegra")) 
+        strcpy(vals[7], valor);
+}
+
 void busca(char *arquivoEntrada, int qntBuscas) {
     FILE *input_file;
 
@@ -255,7 +285,14 @@ void busca(char *arquivoEntrada, int qntBuscas) {
         return;
     }
 
+    // checa se o arquivo está consistente
     fread(&cabecalho.topo, sizeof(int), 1, input_file);
+    if (cabecalho.status == '0') {
+        printf("Falha no processamento do arquivo.\n");
+        fclose(input_file);
+        return;
+    }
+
     fread(&cabecalho.proxRRN, sizeof(int), 1, input_file);
     fread(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
     fread(&cabecalho.nroPares, sizeof(int), 1, input_file);
@@ -270,104 +307,58 @@ void busca(char *arquivoEntrada, int qntBuscas) {
 
         int existe = 0;
         for (int j = 0; j < qntCampos; j++) {
-            scanf(" %s", campo);
-            if (!strcmp(campo, "codEstacao")) {
-                scanf(" %s", valor);
-                strcpy(vals[0], valor);
-            } else if (!strcmp(campo, "nomeEstacao")) {
-                ScanQuoteString(valor);
-                strcpy(vals[1], valor);
-            } else if (!strcmp(campo, "codLinha")) {
-                scanf(" %s", valor);
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-                strcpy(vals[2], valor);
-            } else if (!strcmp(campo, "nomeLinha")) {
-                ScanQuoteString(valor);
-                strcpy(vals[3], valor);
-            } else if (!strcmp(campo, "codProxEstacao")) {
-                scanf(" %s", valor);
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-                strcpy(vals[4], valor);
-            } else if (!strcmp(campo, "distProxEstacao")) {
-                scanf(" %s", valor);
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-                strcpy(vals[5], valor);
-            } else if (!strcmp(campo, "codLinhaIntegra")) {
-                scanf(" %s", valor);
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-                strcpy(vals[6], valor);
-            } else if (!strcmp(campo, "codEstIntegra")) {
-                scanf(" %s", valor);
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-                strcpy(vals[7], valor);
-            }
+            input_filtro(campo, valor, vals);
         }
 
-        Dados *dados = (Dados *)malloc(sizeof(Dados));
+        Dados dados;
+        criarDados(&dados);
 
         for (int j = 0; j < cabecalho.proxRRN; j++) {
-            if (fread(&dados->removido, sizeof(char), 1, input_file) != 1)
+            // sai do loop se EOF
+            if (fread(&dados.removido, sizeof(char), 1, input_file) != 1)
                 break;
-            if (dados->removido == '1') {
+            // pula 1 registro se logicamente removido
+                if (dados.removido == '1') {
                 fseek(input_file, 79, SEEK_CUR);
                 continue;
             }
-            fread(&dados->proximo, sizeof(int), 1, input_file);
-            fread(&dados->codEstacao, sizeof(int), 1, input_file);
-            fread(&dados->codLinha, sizeof(int), 1, input_file);
-            fread(&dados->codProxEstacao, sizeof(int), 1, input_file);
-            fread(&dados->distProxEstacao, sizeof(int), 1, input_file);
-            fread(&dados->codLinhaIntegra, sizeof(int), 1, input_file);
-            fread(&dados->codEstIntegra, sizeof(int), 1, input_file);
-            fread(&dados->tamNomeEstacao, sizeof(int), 1, input_file);
+            fread(&dados.proximo, sizeof(int), 1, input_file);
+            fread(&dados.codEstacao, sizeof(int), 1, input_file);
+            fread(&dados.codLinha, sizeof(int), 1, input_file);
+            fread(&dados.codProxEstacao, sizeof(int), 1, input_file);
+            fread(&dados.distProxEstacao, sizeof(int), 1, input_file);
+            fread(&dados.codLinhaIntegra, sizeof(int), 1, input_file);
+            fread(&dados.codEstIntegra, sizeof(int), 1, input_file);
+            fread(&dados.tamNomeEstacao, sizeof(int), 1, input_file);
 
-            if (dados->tamNomeEstacao > 0) {
-                dados->nomeEstacao = malloc(dados->tamNomeEstacao + 1);
-                fread(dados->nomeEstacao, sizeof(char), dados->tamNomeEstacao, input_file);
-                dados->nomeEstacao[dados->tamNomeEstacao] = '\0';
-            } else {
-                dados->nomeEstacao = NULL;
+            dados.nomeEstacao = malloc(dados.tamNomeEstacao + 1);
+            fread(dados.nomeEstacao, sizeof(char), dados.tamNomeEstacao, input_file);
+            dados.nomeEstacao[dados.tamNomeEstacao] = '\0';
+
+            fread(&dados.tamNomelinha, sizeof(int), 1, input_file);
+
+            if (dados.tamNomelinha > 0) {
+                dados.nomeLinha = malloc(dados.tamNomelinha + 1);
+                fread(dados.nomeLinha, sizeof(char), dados.tamNomelinha, input_file);
+                dados.nomeLinha[dados.tamNomelinha] = '\0';
             }
 
-            fread(&dados->tamNomelinha, sizeof(int), 1, input_file);
+            // pula o lixo
+            fseek(input_file, 80 - 37 - dados.tamNomeEstacao - dados.tamNomelinha, SEEK_CUR);
 
-            if (dados->tamNomelinha > 0) {
-                dados->nomeLinha = malloc(dados->tamNomelinha + 1);
-                fread(dados->nomeLinha, sizeof(char), dados->tamNomelinha, input_file);
-                dados->nomeLinha[dados->tamNomelinha] = '\0';
-            } else {
-                dados->nomeLinha = NULL;
-            }
-
-            fseek(input_file, 80 - 37 - dados->tamNomeEstacao - dados->tamNomelinha, SEEK_CUR);
-
-            if ((vals[0][0] == 0 || atoi(vals[0]) == dados->codEstacao) &&
-                (vals[1][0] == 0 || !strcmp(vals[1], dados->nomeEstacao)) &&
-                (vals[2][0] == 0 || atoi(vals[2]) == dados->codLinha) &&
-                (vals[3][0] == 0 || (!dados->nomeLinha && !strcmp(vals[3], "NULO")) || !strcmp(vals[3], dados->nomeLinha)) &&
-                (vals[4][0] == 0 || atoi(vals[4]) == dados->codProxEstacao) &&
-                (vals[5][0] == 0 || atoi(vals[5]) == dados->distProxEstacao) &&
-                (vals[6][0] == 0 || atoi(vals[6]) == dados->codLinhaIntegra) &&
-                (vals[7][0] == 0 || atoi(vals[7]) == dados->codEstIntegra)) {
-                printDados(dados);
+            if (match_registro(&dados, vals)) {
+                printDados(&dados);
                 printf("\n");
                 existe = 1;
             }
 
-            if (dados->nomeEstacao)
-                free(dados->nomeEstacao);
-            if (dados->nomeLinha)
-                free(dados->nomeLinha);
+            free(dados.nomeEstacao);
+            if (dados.nomeLinha)
+                free(dados.nomeLinha);
         }
         if (!existe) {
             printf("Registro inexistente.\n");
         }
-        free(dados);
         printf("\n");
 
         if (i < qntBuscas - 1) {
@@ -661,35 +652,7 @@ void delete_from(char *arquivoEntrada)
         // Leitura dos filtros de busca
         for (int k = 0; k < m; k++)
         {
-            scanf("%s", campo);
-
-            if (!strcmp(campo, "nomeEstacao") || !strcmp(campo, "nomeLinha")) 
-                ScanQuoteString(valor);
-            
-            else 
-            {
-                scanf("%s", valor);
-                
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-            }
-
-            if (!strcmp(campo, "codEstacao")) 
-                strcpy(vals[0], valor);
-            else if (!strcmp(campo, "nomeEstacao")) 
-                strcpy(vals[1], valor);
-            else if (!strcmp(campo, "codLinha")) 
-                strcpy(vals[2], valor);
-            else if (!strcmp(campo, "nomeLinha")) 
-                strcpy(vals[3], valor);
-            else if (!strcmp(campo, "codProxEstacao")) 
-                strcpy(vals[4], valor);
-            else if (!strcmp(campo, "distProxEstacao")) 
-                strcpy(vals[5], valor);
-            else if (!strcmp(campo, "codLinhaIntegra")) 
-                strcpy(vals[6], valor);
-            else if (!strcmp(campo, "codEstIntegra")) 
-                strcpy(vals[7], valor);
+            input_filtro(campo, valor, vals);
         }
 
         // posiciona no primeiro registro
@@ -758,22 +721,14 @@ void delete_from(char *arquivoEntrada)
 
 int match_registro(Dados *dados, char vals[8][50])
 {
-    return (vals[0][0] == 0 || atoi(vals[0]) == dados->codEstacao) && (vals[1][0] == 0 || 
-            (dados->nomeEstacao && !strcmp(vals[1], dados->nomeEstacao))) &&
-
-           (vals[2][0] == 0 || atoi(vals[2]) == dados->codLinha) &&
-
-           (vals[3][0] == 0 || 
-            (!dados->nomeLinha && !strcmp(vals[3], "NULO")) ||
-            (dados->nomeLinha && !strcmp(vals[3], dados->nomeLinha))) &&
-
-           (vals[4][0] == 0 || atoi(vals[4]) == dados->codProxEstacao) &&
-
-           (vals[5][0] == 0 || atoi(vals[5]) == dados->distProxEstacao) &&
-
-           (vals[6][0] == 0 || atoi(vals[6]) == dados->codLinhaIntegra) &&
-
-           (vals[7][0] == 0 || atoi(vals[7]) == dados->codEstIntegra);
+    return ((vals[0][0] == 0 || atoi(vals[0]) == dados->codEstacao) &&
+                (vals[1][0] == 0 || !strcmp(vals[1], dados->nomeEstacao)) &&
+                (vals[2][0] == 0 || atoi(vals[2]) == dados->codLinha) &&
+                (vals[3][0] == 0 || (!dados->nomeLinha && !strcmp(vals[3], "NULO")) || (dados->nomeLinha && !strcmp(vals[3], dados->nomeLinha))) &&
+                (vals[4][0] == 0 || atoi(vals[4]) == dados->codProxEstacao) &&
+                (vals[5][0] == 0 || atoi(vals[5]) == dados->distProxEstacao) &&
+                (vals[6][0] == 0 || atoi(vals[6]) == dados->codLinhaIntegra) &&
+                (vals[7][0] == 0 || atoi(vals[7]) == dados->codEstIntegra));
 }
 
 void update(char *arquivoEntrada)
@@ -817,33 +772,7 @@ void update(char *arquivoEntrada)
 
         for (int j = 0; j < m; j++)
         {
-            scanf("%s", campo);
-
-            if (!strcmp(campo, "nomeEstacao") || !strcmp(campo, "nomeLinha"))
-                ScanQuoteString(valor);
-            else 
-            {
-                scanf("%s", valor);
-                if (strcmp(valor, "NULO") == 0)
-                    strcpy(valor, "-1");
-            }
-
-            if (!strcmp(campo, "codEstacao")) 
-                strcpy(vals[0], valor);
-            else if (!strcmp(campo, "nomeEstacao")) 
-                strcpy(vals[1], valor);
-            else if (!strcmp(campo, "codLinha")) 
-                strcpy(vals[2], valor);
-            else if (!strcmp(campo, "nomeLinha")) 
-                strcpy(vals[3], valor);
-            else if (!strcmp(campo, "codProxEstacao")) 
-                strcpy(vals[4], valor);
-            else if (!strcmp(campo, "distProxEstacao")) 
-                strcpy(vals[5], valor);
-            else if (!strcmp(campo, "codLinhaIntegra")) 
-                strcpy(vals[6], valor);
-            else if (!strcmp(campo, "codEstIntegra")) 
-                strcpy(vals[7], valor);
+            input_filtro(campo, valor, vals);
         }
 
         int p;
@@ -1018,12 +947,16 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
 
     Cabecalho cabecalho;
 
+    // check e atualização do status do arquivo no cabecalho
     fread(&cabecalho.status, sizeof(char), 1, input_file);
     if (cabecalho.status == '0') {
         printf("Falha no processamento do arquivo.\n");
         fclose(input_file);
         return;
     }
+    cabecalho.status = '0';
+    fseek(input_file, 0, SEEK_SET);
+    fwrite(&cabecalho.status, sizeof(char), 1, input_file);
 
     fread(&cabecalho.topo, sizeof(int), 1, input_file);
     fread(&cabecalho.proxRRN, sizeof(int), 1, input_file);
@@ -1040,90 +973,73 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
         novoDado.codEstacao = atoi(valor);
 
         ScanQuoteString(valor);
-        if (!strcmp(valor, "NULO")) {
-            printf("Falha no processamento do arquivo.\n");
-            break;
-        } else {
-            novoDado.tamNomeEstacao = strlen(valor);
-            novoDado.nomeEstacao = (char*)malloc((strlen(valor)+1) * sizeof(char));
-            strcpy(novoDado.nomeEstacao, valor);
+        novoDado.tamNomeEstacao = strlen(valor);
+        novoDado.nomeEstacao = (char*)malloc((strlen(valor)+1) * sizeof(char));
+        strcpy(novoDado.nomeEstacao, valor);
 
-            fseek(input_file, 46, SEEK_SET);
-            int existe = 0;
-            for (int j = 0; j < cabecalho.proxRRN; j++) {
-                int tamanho;
-                fread(&tamanho, sizeof(int), 1, input_file);
-                char nome[tamanho + 1];
-                fread(nome, sizeof(char), tamanho, input_file);
-                nome[tamanho] = '\0';
+        // fseek(input_file, 46, SEEK_SET);
+        // int existe = 0;
+        // for (int j = 0; j < cabecalho.proxRRN; j++) {
+        //     int tamanho;
+        //     fread(&tamanho, sizeof(int), 1, input_file);
+        //     char nome[tamanho + 1];
+        //     fread(nome, sizeof(char), tamanho, input_file);
+        //     nome[tamanho] = '\0';
 
-                if (strcmp(nome, valor) == 0) {
-                    existe = 1;
-                    break;
-                } else {
-                    fseek(input_file, 80 - 4 - tamanho, SEEK_CUR);
-                }
-            }
-            if (!existe) {
-                cabecalho.nroEstacoes++;
-            }
-        }
+        //     if (strcmp(nome, valor) == 0) {
+        //         existe = 1;
+        //         break;
+        //     } else {
+        //         fseek(input_file, 80 - 4 - tamanho, SEEK_CUR);
+        //     }
+        // }
+        // if (!existe) {
+        //     cabecalho.nroEstacoes++;
+        // }
 
         scanf(" %s", valor);
-        if (!strcmp(valor, "NULO")) {
-            novoDado.codLinha = -1;
-        } else {
+        if (strcmp(valor, "NULO") != 0)
             novoDado.codLinha = atoi(valor);
-        }
 
         ScanQuoteString(valor);
-        if (!strcmp(valor, "NULO")) {
-            novoDado.tamNomelinha = 0;
-            novoDado.nomeLinha = NULL;
-        } else {
+        if (strcmp(valor, "NULO") != 0) {
             novoDado.tamNomelinha = strlen(valor);
             novoDado.nomeLinha = (char*)malloc((strlen(valor)+1) * sizeof(char));
             strcpy(novoDado.nomeLinha, valor);
         }
 
         scanf(" %s", valor);
-        if (!strcmp(valor, "NULO")) {
-            novoDado.codProxEstacao = -1;
-        } else {
+        if (strcmp(valor, "NULO") != 0) {
             novoDado.codProxEstacao = atoi(valor);
             cabecalho.nroPares++;
         }
 
         scanf(" %s", valor);
-        if (!strcmp(valor, "NULO")) {
-            novoDado.distProxEstacao = -1;
-        } else {
+        if (strcmp(valor, "NULO") != 0) {
             novoDado.distProxEstacao = atoi(valor);
         }
 
         scanf(" %s", valor);
-        if (!strcmp(valor, "NULO")) {
-            novoDado.codLinhaIntegra = -1;
-        } else {
+        if (strcmp(valor, "NULO") != 0) {
             novoDado.codLinhaIntegra = atoi(valor);
         }
 
         scanf(" %s", valor);
-        if (!strcmp(valor, "NULO")) {
-            novoDado.codEstIntegra = -1;
-        } else {
+        if (strcmp(valor, "NULO") != 0) {
             novoDado.codEstIntegra = atoi(valor);
         }
 
+        // se não tem registros removidos, adicionar novo no fim do arquivo
+        // se tem, acessar ele, ler o valor do proximo e registrar no cabeçalho
         if (cabecalho.topo == -1) {
             fseek(input_file, 0, SEEK_END);
             cabecalho.proxRRN++;
         } else {
-            fseek(input_file, 18 + 80*cabecalho.topo, SEEK_SET);
+            fseek(input_file, 80*cabecalho.topo + 1, SEEK_CUR);
             int proximo;
             fread(&proximo, sizeof(int), 1, input_file);
             cabecalho.topo = proximo;
-            fseek(input_file, -5, SEEK_CUR);
+            fseek(input_file, -5, SEEK_CUR); // volta para o começo do registro para a inserção
         }
 
         fwrite(&novoDado.removido, sizeof(char), 1, input_file);
@@ -1142,12 +1058,15 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
             fputc('$', input_file); 
         }
 
-        if (novoDado.nomeEstacao)
-            free(novoDado.nomeEstacao);
+        free(novoDado.nomeEstacao);
         if (novoDado.nomeLinha)
             free(novoDado.nomeLinha);
     }
-    fseek(input_file, 1, SEEK_SET);
+
+    // atualização do cabeçalho
+    cabecalho.status = '1';
+    fseek(input_file, 0, SEEK_SET);
+    fwrite(&cabecalho.status, sizeof(char), 1, input_file);
     fwrite(&cabecalho.topo, sizeof(int), 1, input_file);
     fwrite(&cabecalho.proxRRN, sizeof(int), 1, input_file);
     fwrite(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
