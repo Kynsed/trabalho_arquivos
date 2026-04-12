@@ -95,29 +95,15 @@ void lerCsv() {
         if (lerInfo(csv, buffer) > 0)
             novoDado.codEstIntegra = atoi(buffer);
 
-        cabecalho.proxRRN++;
-
-        // FIM DA LEITURA DOS CAMPOS, INÍCIO DA SESSÃO DE ESCRITA DO REGISTRO
-
-        fwrite(&novoDado.removido, sizeof(char), 1, bin);
-        fwrite(&novoDado.proximo, sizeof(int), 1, bin);
-        fwrite(&novoDado.codEstacao, sizeof(int), 1, bin);
-        fwrite(&novoDado.codLinha, sizeof(int), 1, bin);
-        fwrite(&novoDado.codProxEstacao, sizeof(int), 1, bin);
-        fwrite(&novoDado.distProxEstacao, sizeof(int), 1, bin);
-        fwrite(&novoDado.codLinhaIntegra, sizeof(int), 1, bin);
-        fwrite(&novoDado.codEstIntegra, sizeof(int), 1, bin);
-        fwrite(&novoDado.tamNomeEstacao, sizeof(int), 1, bin);
-        fwrite(novoDado.nomeEstacao, sizeof(char), novoDado.tamNomeEstacao, bin);
-        fwrite(&novoDado.tamNomelinha, sizeof(int), 1, bin);
-        fwrite(novoDado.nomeLinha, sizeof(char), novoDado.tamNomelinha, bin);
-        for (int j = 0; j < 80 - 37 - novoDado.tamNomeEstacao - novoDado.tamNomelinha; j++) {
-            fputc('$', bin);
-        }
-
-        free(novoDado.nomeEstacao);
-        free(novoDado.nomeLinha);
-
+            cabecalho.proxRRN++;
+            
+            // FIM DA LEITURA DOS CAMPOS, INÍCIO DA SESSÃO DE ESCRITA DO REGISTRO
+            
+            data_writer(&novoDado, bin);
+            
+            free(novoDado.nomeEstacao);
+            free(novoDado.nomeLinha);
+            
         // ler a quebra de linha, se na verdade for EOF encerrar a leitura
         if (lerInfo(csv, buffer) == -1) break;
     }
@@ -240,7 +226,7 @@ void ScanQuoteString(char *str) {
 void input_filtro(char campo[50], char valor[50], char vals[8][50]) {
     scanf("%s", campo);
 
-    if (!strcmp(campo, "nomeEstacao") || !strcmp(campo, "nomeLinha")) 
+    if (!strcmp(campo, "nomeEstacao") || !strcmp(campo, "nomeLinha"))
         ScanQuoteString(valor);
     else {
         scanf("%s", valor);
@@ -278,24 +264,12 @@ void busca(char *arquivoEntrada, int qntBuscas) {
 
     Cabecalho cabecalho;
 
-    fread(&cabecalho.status, sizeof(char), 1, input_file);
-    if (cabecalho.status == '0') {
-        printf("Falha no processamento do arquivo.\n");
-        fclose(input_file);
-        return;
-    }
-
     // checa se o arquivo está consistente
-    fread(&cabecalho.topo, sizeof(int), 1, input_file);
-    if (cabecalho.status == '0') {
+    if (!header_reader(&cabecalho, input_file)) {
         printf("Falha no processamento do arquivo.\n");
         fclose(input_file);
         return;
     }
-
-    fread(&cabecalho.proxRRN, sizeof(int), 1, input_file);
-    fread(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
-    fread(&cabecalho.nroPares, sizeof(int), 1, input_file);
 
 
     for (int i = 0; i < qntBuscas; i++) {
@@ -314,37 +288,13 @@ void busca(char *arquivoEntrada, int qntBuscas) {
         criarDados(&dados);
 
         for (int j = 0; j < cabecalho.proxRRN; j++) {
+            
+            int valor = data_reader(&dados, input_file);
             // sai do loop se EOF
-            if (fread(&dados.removido, sizeof(char), 1, input_file) != 1)
+            if (!valor)
                 break;
             // pula 1 registro se logicamente removido
-                if (dados.removido == '1') {
-                fseek(input_file, 79, SEEK_CUR);
-                continue;
-            }
-            fread(&dados.proximo, sizeof(int), 1, input_file);
-            fread(&dados.codEstacao, sizeof(int), 1, input_file);
-            fread(&dados.codLinha, sizeof(int), 1, input_file);
-            fread(&dados.codProxEstacao, sizeof(int), 1, input_file);
-            fread(&dados.distProxEstacao, sizeof(int), 1, input_file);
-            fread(&dados.codLinhaIntegra, sizeof(int), 1, input_file);
-            fread(&dados.codEstIntegra, sizeof(int), 1, input_file);
-            fread(&dados.tamNomeEstacao, sizeof(int), 1, input_file);
-
-            dados.nomeEstacao = malloc(dados.tamNomeEstacao + 1);
-            fread(dados.nomeEstacao, sizeof(char), dados.tamNomeEstacao, input_file);
-            dados.nomeEstacao[dados.tamNomeEstacao] = '\0';
-
-            fread(&dados.tamNomelinha, sizeof(int), 1, input_file);
-
-            if (dados.tamNomelinha > 0) {
-                dados.nomeLinha = malloc(dados.tamNomelinha + 1);
-                fread(dados.nomeLinha, sizeof(char), dados.tamNomelinha, input_file);
-                dados.nomeLinha[dados.tamNomelinha] = '\0';
-            }
-
-            // pula o lixo
-            fseek(input_file, 80 - 37 - dados.tamNomeEstacao - dados.tamNomelinha, SEEK_CUR);
+            if (valor == -1) continue;
 
             if (match_registro(&dados, vals)) {
                 printDados(&dados);
@@ -386,69 +336,40 @@ int header_reader(Cabecalho *cab, FILE *input_file)
 
 int data_reader(Dados *data, FILE *input_file)
 {
-    if (data == NULL || input_file == NULL)
+    char lixo[50];
+
+    // sai do loop se EOF
+    if (fread(&data->removido, sizeof(char), 1, input_file) != 1)
         return 0;
-
-    unsigned char buffer[80];
-
-    if (fread(buffer, 80, 1, input_file) != 1)
-        return 0; // EOF
-
-    int offset = 0;
-
-    memcpy(&data->removido, buffer + offset, sizeof(char));
-    offset += sizeof(char);
-
-    memcpy(&data->proximo, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->codEstacao, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->codLinha, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->codProxEstacao, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->distProxEstacao, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->codLinhaIntegra, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->codEstIntegra, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    memcpy(&data->tamNomeEstacao, buffer + offset, sizeof(int));
-    offset += sizeof(int);
-
-    if (data->tamNomeEstacao > 0)
-    {
-        data->nomeEstacao = malloc(data->tamNomeEstacao + 1);
-        memcpy(data->nomeEstacao, buffer + offset, data->tamNomeEstacao);
-        data->nomeEstacao[data->tamNomeEstacao] = '\0';
-    }
-    else
-    {
-        data->nomeEstacao = NULL;
+    // pula 1 registro se logicamente removido
+    if (data->removido == '1') {
+        fseek(input_file, 79, SEEK_CUR);
+        return -1;
     }
 
-    offset += data->tamNomeEstacao;
+    fread(&data->proximo, sizeof(int), 1, input_file);
+    fread(&data->codEstacao, sizeof(int), 1, input_file);
+    fread(&data->codLinha, sizeof(int), 1, input_file);
+    fread(&data->codProxEstacao, sizeof(int), 1, input_file);
+    fread(&data->distProxEstacao, sizeof(int), 1, input_file);
+    fread(&data->codLinhaIntegra, sizeof(int), 1, input_file);
+    fread(&data->codEstIntegra, sizeof(int), 1, input_file);
+    fread(&data->tamNomeEstacao, sizeof(int), 1, input_file);
 
-    memcpy(&data->tamNomelinha, buffer + offset, sizeof(int));
-    offset += sizeof(int);
+    data->nomeEstacao = malloc(data->tamNomeEstacao + 1);
+    fread(data->nomeEstacao, sizeof(char), data->tamNomeEstacao, input_file);
+    data->nomeEstacao[data->tamNomeEstacao] = '\0';
 
-    if (data->tamNomelinha > 0)
-    {
+    fread(&data->tamNomelinha, sizeof(int), 1, input_file);
+
+    if (data->tamNomelinha > 0) {
         data->nomeLinha = malloc(data->tamNomelinha + 1);
-        memcpy(data->nomeLinha, buffer + offset, data->tamNomelinha);
+        fread(data->nomeLinha, sizeof(char), data->tamNomelinha, input_file);
         data->nomeLinha[data->tamNomelinha] = '\0';
     }
-    else
-    {
-        data->nomeLinha = NULL;
-    }
+
+    // pula o lixo
+    fread(&lixo, sizeof(char), 80 - 37 - data->tamNomeEstacao - data->tamNomelinha, input_file);
 
     return 1;
 }
@@ -494,22 +415,14 @@ void select_from(char *arquivoEntrada)
     while (1)
     {
         Dados data;
+        int valor;
 
         // Leitura do registro completo (80 bytes) usando função auxiliar
-        if (!data_reader(&data, input_file))
-            break;
+        valor = data_reader(&data, input_file);
+        if (!valor) break;
 
         //Ignora registros logicamente removidos
-        if (data.removido == '1')
-        {
-            if (data.nomeEstacao) 
-                free(data.nomeEstacao);
-            
-            if (data.nomeLinha) 
-                free(data.nomeLinha);
-            
-            continue;
-        }
+        if (valor == -1) continue;
 
         found = 1;
 
@@ -664,16 +577,12 @@ void delete_from(char *arquivoEntrada)
 
             Dados data;
 
-            // leitura do registro (80 bytes)
-            if (!data_reader(&data, input_file))
-                break;
+            int valor = data_reader(&data, input_file);
 
-            if (data.removido == '1') 
-            {
-                if (data.nomeEstacao) free(data.nomeEstacao);
-                if (data.nomeLinha) free(data.nomeLinha);
-                continue;
-            }
+            // leitura do registro (80 bytes)
+            if (!valor) break;
+
+            if (valor == -1) continue;
 
             // Encontrou um match e vai removê-lo
             if (match_registro(&data, vals))
@@ -800,11 +709,12 @@ void update(char *arquivoEntrada)
 
             Dados data;
 
-            // leitura do registro (80 bytes)
-            if (!data_reader(&data, input_file))
-                break;
+            int valor = data_reader(&data, input_file);
 
-            if (data.removido == '1') continue;
+            // leitura do registro (80 bytes)
+            if (!valor) break;
+
+            if (valor == -1) continue;
             if (!match_registro(&data, vals)) continue;
 
             char nomeEstacao[100] = {0};
@@ -863,35 +773,8 @@ void update(char *arquivoEntrada)
                 }
             }
 
-            int novo_tam = 37 + data.tamNomeEstacao + data.tamNomelinha;
-
-            if (novo_tam <= 80)
-            {
-                fseek(input_file, pos, SEEK_SET);
-
-                fwrite(&data.removido, sizeof(char), 1, input_file);
-                fwrite(&data.proximo, sizeof(int), 1, input_file);
-
-                fwrite(&data.codEstacao, sizeof(int), 1, input_file);
-                fwrite(&data.codLinha, sizeof(int), 1, input_file);
-                fwrite(&data.codProxEstacao, sizeof(int), 1, input_file);
-                fwrite(&data.distProxEstacao, sizeof(int), 1, input_file);
-                fwrite(&data.codLinhaIntegra, sizeof(int), 1, input_file);
-                fwrite(&data.codEstIntegra, sizeof(int), 1, input_file);
-
-                fwrite(&data.tamNomeEstacao, sizeof(int), 1, input_file);
-                fwrite(nomeEstacao, sizeof(char), data.tamNomeEstacao, input_file);
-
-                fwrite(&data.tamNomelinha, sizeof(int), 1, input_file);
-                fwrite(nomeLinha, sizeof(char), data.tamNomelinha, input_file);
-
-                int preenchido = novo_tam;
-                while (preenchido < 80)
-                {
-                    fputc('$', input_file);
-                    preenchido++;
-                }
-            }
+            fseek(input_file, -80, SEEK_CUR);
+            data_writer(&data, input_file);
         }
     }
 
@@ -948,20 +831,15 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
     Cabecalho cabecalho;
 
     // check e atualização do status do arquivo no cabecalho
-    fread(&cabecalho.status, sizeof(char), 1, input_file);
-    if (cabecalho.status == '0') {
+    if (!header_reader(&cabecalho, input_file)) {
         printf("Falha no processamento do arquivo.\n");
         fclose(input_file);
         return;
     }
-    cabecalho.status = '0';
-    fseek(input_file, 0, SEEK_SET);
-    fwrite(&cabecalho.status, sizeof(char), 1, input_file);
+    // cabecalho.status = '0';
+    // fseek(input_file, 0, SEEK_SET);
+    // fwrite(&cabecalho.status, sizeof(char), 1, input_file);
 
-    fread(&cabecalho.topo, sizeof(int), 1, input_file);
-    fread(&cabecalho.proxRRN, sizeof(int), 1, input_file);
-    fread(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
-    fread(&cabecalho.nroPares, sizeof(int), 1, input_file);
 
     for (int i = 0; i < qntInsercoes; i++) {
         Dados novoDado;
@@ -1042,21 +920,7 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
             fseek(input_file, -5, SEEK_CUR); // volta para o começo do registro para a inserção
         }
 
-        fwrite(&novoDado.removido, sizeof(char), 1, input_file);
-        fwrite(&novoDado.proximo, sizeof(int), 1, input_file);
-        fwrite(&novoDado.codEstacao, sizeof(int), 1, input_file);
-        fwrite(&novoDado.codLinha, sizeof(int), 1, input_file);
-        fwrite(&novoDado.codProxEstacao, sizeof(int), 1, input_file);
-        fwrite(&novoDado.distProxEstacao, sizeof(int), 1, input_file);
-        fwrite(&novoDado.codLinhaIntegra, sizeof(int), 1, input_file);
-        fwrite(&novoDado.codEstIntegra, sizeof(int), 1, input_file);
-        fwrite(&novoDado.tamNomeEstacao, sizeof(int), 1, input_file);
-        fwrite(novoDado.nomeEstacao, sizeof(char), novoDado.tamNomeEstacao, input_file);
-        fwrite(&novoDado.tamNomelinha, sizeof(int), 1, input_file);
-        fwrite(novoDado.nomeLinha, sizeof(char), novoDado.tamNomelinha, input_file);
-        for (int j = 0; j < 80 - 37 - novoDado.tamNomeEstacao - novoDado.tamNomelinha; j++) {
-            fputc('$', input_file); 
-        }
+        data_writer(&novoDado, input_file);
 
         free(novoDado.nomeEstacao);
         if (novoDado.nomeLinha)
@@ -1065,14 +929,45 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
 
     // atualização do cabeçalho
     cabecalho.status = '1';
-    fseek(input_file, 0, SEEK_SET);
-    fwrite(&cabecalho.status, sizeof(char), 1, input_file);
-    fwrite(&cabecalho.topo, sizeof(int), 1, input_file);
-    fwrite(&cabecalho.proxRRN, sizeof(int), 1, input_file);
-    fwrite(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
-    fwrite(&cabecalho.nroPares, sizeof(int), 1, input_file);
+    header_writer(&cabecalho, input_file);
 
     fclose(input_file);
 
     BinarioNaTela(arquivoEntrada);
+}
+
+void data_writer(Dados* data, FILE* f) 
+{
+    fwrite(&data->removido, sizeof(char), 1, f);
+    fwrite(&data->proximo, sizeof(int), 1, f);
+    fwrite(&data->codEstacao, sizeof(int), 1, f);
+    fwrite(&data->codLinha, sizeof(int), 1, f);
+    fwrite(&data->codProxEstacao, sizeof(int), 1, f);
+    fwrite(&data->distProxEstacao, sizeof(int), 1, f);
+    fwrite(&data->codLinhaIntegra, sizeof(int), 1, f);
+    fwrite(&data->codEstIntegra, sizeof(int), 1, f);
+    fwrite(&data->tamNomeEstacao, sizeof(int), 1, f);
+    
+    if (data->tamNomeEstacao > 0 && data->nomeEstacao)
+        fwrite(data->nomeEstacao, sizeof(char), data->tamNomeEstacao, f);
+    
+    fwrite(&data->tamNomelinha, sizeof(int), 1, f);
+    
+    if (data->tamNomelinha > 0 && data->nomeLinha)
+        fwrite(data->nomeLinha, sizeof(char), data->tamNomelinha, f);
+
+    int padding = 80 - 37 - data->tamNomeEstacao - data->tamNomelinha;
+    
+    for (int j = 0; j < padding; j++)
+        fputc('$', f);
+}
+
+void header_writer(Cabecalho* cab, FILE* f) 
+{
+    fseek(f, 0, SEEK_SET);
+    fwrite(&cab->status, sizeof(char), 1, f);
+    fwrite(&cab->topo, sizeof(int), 1, f);
+    fwrite(&cab->proxRRN, sizeof(int), 1, f);
+    fwrite(&cab->nroEstacoes, sizeof(int), 1, f);
+    fwrite(&cab->nroPares, sizeof(int), 1, f);
 }

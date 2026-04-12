@@ -42,3 +42,6 @@ void printDados(Dados *data);
 void inserir(char *arquivoEntrada, int qntInsercoes);
 void ScanQuoteString(char *str);
 void input_filtro(char campo[50], char valor[50], char vals[8][50]);
+void data_writer(Dados* data, FILE* f);
+int data_reader(Dados *data, FILE *input_file);
+int header_reader(Cabecalho *cab, FILE *input_file);
