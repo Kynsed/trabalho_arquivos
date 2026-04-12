@@ -85,15 +85,15 @@ void lerCsv() {
         if (lerInfo(csv, buffer) > 0)
             novoDado.codEstIntegra = atoi(buffer);
 
-            cabecalho.proxRRN++;
-            
-            // FIM DA LEITURA DOS CAMPOS, INÍCIO DA SESSÃO DE ESCRITA DO REGISTRO
-            
-            data_writer(&novoDado, bin);
-            
-            free(novoDado.nomeEstacao);
-            free(novoDado.nomeLinha);
-            
+        cabecalho.proxRRN++;
+
+        // FIM DA LEITURA DOS CAMPOS, INÍCIO DA SESSÃO DE ESCRITA DO REGISTRO
+
+        data_writer(&novoDado, bin);
+
+        free(novoDado.nomeEstacao);
+        free(novoDado.nomeLinha);
+
         // ler a quebra de linha, se na verdade for EOF encerrar a leitura
         if (lerInfo(csv, buffer) == -1) break;
     }
@@ -400,21 +400,7 @@ void select_from(char *arquivoEntrada)
         found = 1;
 
         //Impressão dos campos (ordem definida pelo trabalho)
-        printf("%d ", data.codEstacao);
-
-        printf("%s ", data.nomeEstacao);
-
-        (data.codLinha == -1) ? printf("NULO ") : printf("%d ", data.codLinha);
-
-        (data.tamNomelinha == 0) ? printf("NULO ") : printf("%s ", data.nomeLinha);
-
-        (data.codProxEstacao == -1) ? printf("NULO ") : printf("%d ", data.codProxEstacao);
-
-        (data.distProxEstacao == -1) ? printf("NULO ") : printf("%d ", data.distProxEstacao);
-
-        (data.codLinhaIntegra == -1) ? printf("NULO ") : printf("%d ", data.codLinhaIntegra);
-
-        (data.codEstIntegra == -1) ? printf("NULO") : printf("%d", data.codEstIntegra);
+        printDados(&data);
 
         printf("\n");
 
@@ -509,10 +495,7 @@ void delete_from(char *arquivoEntrada)
     }
 
     // Marca o arquivo como inconsistente
-    char status = '0';
-    
-    fseek(input_file, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, input_file);
+    set_status(input_file, '0');
 
     int n;
     
@@ -583,14 +566,8 @@ void delete_from(char *arquivoEntrada)
     }
 
     // Regrava o cabeçalho atualizado
-    status = '1';
-
-    fseek(input_file, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, input_file);
-    fwrite(&cabecalho.topo, sizeof(int), 1, input_file);
-    fwrite(&cabecalho.proxRRN, sizeof(int), 1, input_file);
-    fwrite(&cabecalho.nroEstacoes, sizeof(int), 1, input_file);
-    fwrite(&cabecalho.nroPares, sizeof(int), 1, input_file);
+    cabecalho.status = '1';
+    header_writer(&cabecalho, input_file);
 
     fclose(input_file);
 
@@ -613,11 +590,7 @@ void update(char *arquivoEntrada)
 {
     FILE* input_file;
 
-    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "rb+"))) 
-    {
-        printf("Falha no processamento do arquivo.\n");
-        return;
-    }
+    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "rb+"))) return;
 
     Cabecalho cabecalho;
 
@@ -630,10 +603,7 @@ void update(char *arquivoEntrada)
     }
 
     // marca inconsistente
-    char status = '0';
-    
-    fseek(input_file, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, input_file);
+    set_status(input_file, '0');
 
     int n;
 
@@ -747,12 +717,8 @@ void update(char *arquivoEntrada)
         }
     }
 
-    fseek(input_file, 1, SEEK_SET);
-    fwrite(&cabecalho.topo, sizeof(int), 1, input_file);
-
-    status = '1';
-    fseek(input_file, 0, SEEK_SET);
-    fwrite(&status, sizeof(char), 1, input_file);
+    cabecalho.status = '1';
+    header_writer(&cabecalho, input_file);
 
     fclose(input_file);
 
@@ -801,10 +767,7 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
         fclose(input_file);
         return;
     }
-    // cabecalho.status = '0';
-    // fseek(input_file, 0, SEEK_SET);
-    // fwrite(&cabecalho.status, sizeof(char), 1, input_file);
-
+    set_status(input_file, '0');
 
     for (int i = 0; i < qntInsercoes; i++) {
         Dados novoDado;
@@ -819,26 +782,6 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
         novoDado.tamNomeEstacao = strlen(valor);
         novoDado.nomeEstacao = (char*)malloc((strlen(valor)+1) * sizeof(char));
         strcpy(novoDado.nomeEstacao, valor);
-
-        // fseek(input_file, 46, SEEK_SET);
-        // int existe = 0;
-        // for (int j = 0; j < cabecalho.proxRRN; j++) {
-        //     int tamanho;
-        //     fread(&tamanho, sizeof(int), 1, input_file);
-        //     char nome[tamanho + 1];
-        //     fread(nome, sizeof(char), tamanho, input_file);
-        //     nome[tamanho] = '\0';
-
-        //     if (strcmp(nome, valor) == 0) {
-        //         existe = 1;
-        //         break;
-        //     } else {
-        //         fseek(input_file, 80 - 4 - tamanho, SEEK_CUR);
-        //     }
-        // }
-        // if (!existe) {
-        //     cabecalho.nroEstacoes++;
-        // }
 
         scanf(" %s", valor);
         if (strcmp(valor, "NULO") != 0)
@@ -878,7 +821,7 @@ void inserir(char *arquivoEntrada, int qntInsercoes) {
             fseek(input_file, 0, SEEK_END);
             cabecalho.proxRRN++;
         } else {
-            fseek(input_file, 80*cabecalho.topo + 1, SEEK_CUR);
+            fseek(input_file, 80*cabecalho.topo + 18, SEEK_SET);
             int proximo;
             fread(&proximo, sizeof(int), 1, input_file);
             cabecalho.topo = proximo;
@@ -948,4 +891,10 @@ FILE* open_bin(char* arquivo,char* modo)
         printf("Falha no processamento do arquivo.\n");
 
     return f;
+}
+
+void set_status(FILE* f, char status) 
+{
+    fseek(f, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, f);
 }
