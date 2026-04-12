@@ -27,18 +27,8 @@ void lerCsv() {
     char nomeCsv[100], nomeBin[100], buffer[100];
     scanf("%s %s", nomeCsv, nomeBin);
 
-    FILE *csv = fopen(nomeCsv, "r");
-    if (csv == NULL) {
-        printf("Falha no processamento do arquivo.");
-        return;
-    }
-
-    FILE *bin = fopen(nomeBin, "wb");
-    if (bin == NULL) {
-        printf("Falha no processamento do arquivo.");
-        fclose(csv);
-        return;
-    }
+    FILE *csv, *bin;
+    if (!(csv = open_bin(nomeCsv, "r")) || !(bin = open_bin(nomeBin, "wb"))) return;
 
     Cabecalho cabecalho;
     criarCabecalho(&cabecalho);
@@ -159,15 +149,6 @@ int novaEstacao(char **nomes, const char *nome, int n) {
     return 1;
 }
 
-void liberarVetorDados(struct _dados **vetorDados, int tamanho) {
-    for (int i = 0; i < tamanho; i++) {
-        free(vetorDados[i]->nomeEstacao);
-        free(vetorDados[i]->nomeLinha);
-        free(vetorDados[i]);
-    }
-    free(vetorDados);
-}
-
 void BinarioNaTela(char *arquivo) {
     FILE *fs;
     if (arquivo == NULL || !(fs = fopen(arquivo, "rb"))) {
@@ -256,11 +237,7 @@ void input_filtro(char campo[50], char valor[50], char vals[8][50]) {
 void busca(char *arquivoEntrada, int qntBuscas) {
     FILE *input_file;
 
-    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "rb"))) 
-    {
-        printf("Falha no processamento do arquivo.");
-        return;
-    }
+    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "rb"))) return;
 
     Cabecalho cabecalho;
 
@@ -393,11 +370,7 @@ void select_from(char *arquivoEntrada)
 
     // Validação do arquivo
     // Verifica se o nome do arquivo é válido e se foi possível abri-lo.
-    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "rb"))) 
-    {
-        printf("Falha no processamento do arquivo.\n");
-        return;
-    }
+    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "rb"))) return;
 
     Cabecalho cabecalho;
 
@@ -523,11 +496,7 @@ void delete_from(char *arquivoEntrada)
     FILE *input_file;
 
     // Abre o arquivo para leitura e escrita binária
-    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "rb+"))) 
-    {
-        printf("Falha no processamento do arquivo.\n");
-        return;
-    }
+    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "rb+"))) return;
 
     Cabecalho cabecalho;
 
@@ -644,7 +613,7 @@ void update(char *arquivoEntrada)
 {
     FILE* input_file;
 
-    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "rb+"))) 
+    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "rb+"))) 
     {
         printf("Falha no processamento do arquivo.\n");
         return;
@@ -822,11 +791,7 @@ void printDados(Dados *data) {
 void inserir(char *arquivoEntrada, int qntInsercoes) {
     FILE *input_file;
 
-    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "r+b"))) 
-    {
-        printf("Falha no processamento do arquivo.");
-        return;
-    }
+    if (arquivoEntrada == NULL || !(input_file = open_bin(arquivoEntrada, "r+b"))) return;
 
     Cabecalho cabecalho;
 
@@ -970,4 +935,17 @@ void header_writer(Cabecalho* cab, FILE* f)
     fwrite(&cab->proxRRN, sizeof(int), 1, f);
     fwrite(&cab->nroEstacoes, sizeof(int), 1, f);
     fwrite(&cab->nroPares, sizeof(int), 1, f);
+}
+
+FILE* open_bin(char* arquivo,char* modo) 
+{
+    if (arquivo == NULL)
+        return NULL;
+
+    FILE* f = fopen(arquivo, modo);
+
+    if (!f)
+        printf("Falha no processamento do arquivo.\n");
+
+    return f;
 }
