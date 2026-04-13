@@ -222,14 +222,11 @@ void ler() //FUNCIONALIDADE 1
     char nomeCsv[100], nomeBin[100], buffer[100];
     scanf("%s %s", nomeCsv, nomeBin);
 
-    FILE* csv = fopen(nomeCsv, "r");
-    if (csv == NULL) {
-        printf("Falha no processamento do arquivo.");
-        return;
-    }
+    FILE* csv;
+    FILE* bin;
 
-    FILE* bin = abrir_arquivo(nomeBin, "wb");
-    if (bin == NULL) {
+    if (!(csv = abrir_arquivo(nomeCsv, "r"))) return;
+    if (!(bin = abrir_arquivo(nomeBin, "wb"))) {
         fclose(csv);
         return;
     }
@@ -270,7 +267,7 @@ void ler() //FUNCIONALIDADE 1
 
         // a partir daqui vamos sempre checar se o campo é nulo
 
-            if (ler_info(csv, buffer) > 0)
+        if (ler_info(csv, buffer) > 0)
             novoDado.codLinha = atoi(buffer);
 
         novoDado.tamNomelinha = ler_info(csv, buffer);
@@ -495,7 +492,7 @@ void deletar(char* arquivoEntrada) //FUNCIONALIDADE 4
             if (match_registro(&data, vals))
             {
                 // Volta ao início do registro
-                fseek(input_file, pos, SEEK_SET);
+                fseek(input_file, -80, SEEK_CUR);
 
                 // Marca como removido
                 char removido = '1';
@@ -516,7 +513,7 @@ void deletar(char* arquivoEntrada) //FUNCIONALIDADE 4
                     cabecalho.nroEstacoes--;
 
                 // Avança para próximo registro
-                fseek(input_file, pos + 80, SEEK_SET);
+                fseek(input_file, 75, SEEK_CUR);
             }
 
             liberar_dados(&data);
@@ -710,7 +707,7 @@ void atualizar(char* arquivoEntrada)
             if (upd_ativo[7]) dados.codEstIntegra = atoi(vals_upd[7]);
 
             // reescreve in-place (volta 80 bytes)
-            fseek(f, 17 + (long)j * 80, SEEK_SET);
+            fseek(f, -80, SEEK_CUR);
             escrever_dados(&dados, f);
             // ponteiro já em 17+(j+1)*80, sem seek extra
             liberar_dados(&dados);
