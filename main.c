@@ -1,6 +1,6 @@
 #include "crud.h"
 
-int main(int argc, char *argv[]) 
+int main(void) 
 {
     int escolha, qnt;
     char entradaBin[100];
@@ -10,22 +10,22 @@ int main(int argc, char *argv[])
     switch (escolha) 
     {
         case 1:
-            lerCsv();
+            ler();
             break;
         
         case 2:
             scanf("%s", entradaBin);
-            select_from(entradaBin);
+            selecionar(entradaBin);
             break;
         
         case 3:
             scanf(" %s %d", entradaBin, &qnt);
-            busca(entradaBin, qnt);
+            buscar(entradaBin, qnt);
             break;
         
         case 4:
             scanf(" %s", entradaBin);
-            delete_from(entradaBin);
+            deletar(entradaBin);
             break;
         
         case 5:
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
         
         case 6:
             scanf(" %s", entradaBin);
-            update(entradaBin);
+            atualizar(entradaBin);
             break;
 
         default:

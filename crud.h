@@ -29,32 +29,32 @@ typedef struct dados
 } Dados;
 
 // Inicialização
-void criarCabecalho(Cabecalho* cab);
-void criarDados(Dados* dados);
+void criar_dados(Dados* dados);
+void liberar_dados(Dados* dados);
 
-// I/O binário
-FILE* open_bin(char* arquivo,char* modo);
-int header_reader(Cabecalho* cab, FILE* f);
-void header_writer(Cabecalho* cab, FILE* f);
-int data_reader(Dados* data, FILE* f);
-void data_writer(Dados* data, FILE* f);
+// I/O
+FILE* abrir_arquivo(char* arquivo,char* modo);
+int ler_cabecalho(Cabecalho* cab, FILE* f);
+void escrever_cabecalho(Cabecalho* cab, FILE* f);
+int ler_dados(Dados* data, FILE* f);
+void escrever_dados(Dados* data, FILE* f);
 void set_status(FILE* f, char status);
 
 // Funcionalidades principais
-void lerCsv();
-void select_from(char* arquivoEntrada);
-void busca(char* arquivoEntrada, int qntBuscas);
-void delete_from(char* arquivoEntrada);
+void ler();
+void selecionar(char* arquivoEntrada);
+void buscar(char* arquivoEntrada, int qntBuscas);
+void deletar(char* arquivoEntrada);
 void inserir(char* arquivoEntrada, int qntInsercoes);
-void update(char* arquivoEntrada);
+void atualizar(char* arquivoEntrada);
 
 // Utilitários
-int lerInfo(FILE* csv, char buffer[100]);
-int novaEstacao(char** nomes, const char* nome, int n);
+int ler_info(FILE* csv, char buffer[100]);
+int tem_estacao_ativa(FILE* input_file, int proxRRN, char* nome);
+int nova_estacao(char** nomes, char* nome, int n);
 int match_registro(Dados* dados, char vals[8][50]);
-void printDados(Dados* data);
-void input_filtro(char campo[50], char valor[50], char vals[8][50]);
-int tem_estacao_ativa(FILE* input_file, int proxRRN, const char* nome);
+void print_dados(Dados* data);
+int input_filtro(char campo[50], char valor[50], char vals[8][50]);
 
 //Funções fornecidas
 void BinarioNaTela(char* arquivo);

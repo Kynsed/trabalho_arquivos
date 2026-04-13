@@ -1,5 +1,5 @@
 all: main.o crud.o
-	gcc main.o crud.o -o programaTrab -std=c99 -g
+	gcc main.o crud.o -o programaTrab -std=c99 -g -Wall
 
 crud.o:
 	gcc -c crud.c -o crud.o
@@ -12,4 +12,4 @@ clean:
 
 run:
 	./programaTrab
-#valgrind --leak-check=yes -s --track-origins=yes ./programaTrab
+#svalgrind --leak-check=yes -s --track-origins=yes ./programaTrab
