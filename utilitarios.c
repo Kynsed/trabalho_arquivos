@@ -95,3 +95,56 @@ void BinarioNaTela(char *arquivo)
     free(mb);
     fclose(fs);
 }
+
+int tem_estacao_ativa(FILE *input_file, int proxRRN, const char *nome)
+{
+    const char *nome_busca = nome ? nome : "";
+
+    long pos_atual = ftell(input_file); /* salva posicao original */
+    int existe = 0;
+
+    /* Vai para o inicio da area de registros (logo apos o cabecalho). */
+    fseek(input_file, TAM_CABECALHO, SEEK_SET);
+
+    for (int i = 0; i < proxRRN; i++)
+    {
+        unsigned char buffer[TAM_REGISTRO];
+
+        if (fread(buffer, TAM_REGISTRO, 1, input_file) != 1)
+            break;
+
+        int offset = 0;
+        char removido;
+
+        memcpy(&removido, buffer + offset, sizeof(char));
+        offset += sizeof(char);
+
+        /* Pula registros removidos assim que o status removido e lido como '1'. */
+        if (removido == '1')
+            continue;
+
+        /* Avanca ate o campo tamNomeEstacao (7 inteiros + codEstIntegra). */
+        offset += sizeof(int) * 6;
+        offset += sizeof(int);
+
+        int tamNomeEstacao;
+        memcpy(&tamNomeEstacao, buffer + offset, sizeof(int));
+        offset += sizeof(int);
+
+        char nomeEstacao[100] = {0};
+        if (tamNomeEstacao > 0 && tamNomeEstacao < 100)
+        {
+            memcpy(nomeEstacao, buffer + offset, tamNomeEstacao);
+            nomeEstacao[tamNomeEstacao] = '\0';
+        }
+
+        if (strcmp(nomeEstacao, nome_busca) == 0)
+        {
+            existe = 1;
+            break;
+        }
+    }
+
+    fseek(input_file, pos_atual, SEEK_SET); /* restaura posicao */
+    return existe;
+}

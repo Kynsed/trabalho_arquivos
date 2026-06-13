@@ -72,6 +72,16 @@ int main(void)
             select_where(entradaBin, entradaArvore, qnt);
             break;
 
+        case 9:
+            scanf(" %s %s %d", entradaBin, entradaArvore, &qnt);
+            insert_arvore(entradaBin, entradaArvore, qnt);
+            break;
+
+        case 10:
+            scanf(" %s %s %d", entradaBin, entradaArvore, &qnt);
+            delete_arvore(entradaBin, entradaArvore, qnt);
+            break;
+
         default:
             printf("Escolha inválida.\n");
             break;

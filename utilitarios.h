@@ -32,4 +32,12 @@ void ScanQuoteString(char *str);
  */
 void BinarioNaTela(char *arquivo);
 
+/*
+ * tem_estacao_ativa (auxiliar de [4]): percorre o arquivo procurando algum
+ * registro ativo cujo nomeEstacao seja igual a 'nome'. Usado apos uma remocao
+ * para decidir se nroEstacoes deve ser decrementado. Preserva a posicao
+ * corrente do arquivo.
+ */
+int tem_estacao_ativa(FILE *input_file, int proxRRN, const char *nome);
+
 #endif /* UTILITARIOS_H */

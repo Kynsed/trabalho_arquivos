@@ -29,4 +29,6 @@ void criar_indice_arvore(char *arquivoDados, char *arquivoIndice);
  */
 void select_where(char *arquivoDados, char *arquivoIndice, int n);
 
+void insert_arvore(char *arquivoDado, char *arquivoIndice, int n);
+
 #endif /* FUNCIONALIDADES_ARVORE_H */

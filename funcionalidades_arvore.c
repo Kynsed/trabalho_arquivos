@@ -280,3 +280,189 @@ void select_where(char *arquivoDados, char *arquivoIndice, int n)
     if (indice) fclose(indice);
     fclose(dados);
 }
+
+void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
+    FILE *dados;
+
+    /* O arquivo de dados e sempre necessario. */
+    if (arquivoDados == NULL || !(dados = fopen(arquivoDados, "rb+")))
+    {
+        printf("Falha no processamento do arquivo1.\n");
+        return;
+    }
+    Cabecalho cabDados;
+    if (!header_reader(&cabDados, dados))
+    {
+        printf("Falha no processamento do arquivo2.\n");
+        fclose(dados);
+        return;
+    }
+
+    FILE *indice;
+    if (arquivoIndice == NULL || !(indice = fopen(arquivoIndice, "rb+")))
+    {
+        printf("Falha no processamento do arquivo3.\n");
+        fclose(dados);
+        return;
+    }
+    CabecalhoArvoreB cabArvore;
+    if (!cabecalhoArvore_ler(&cabArvore, indice))
+    {
+        printf("Falha no processamento do arquivo4.\n");
+        fclose(dados);
+        fclose(indice);
+        return;
+    }
+
+    /* Marca os arquivos como inconsistentes enquanto a insercao acontece. */
+    char status = '0';
+    fseek(dados, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, dados);
+    fseek(indice, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, indice);
+
+    for (int i = 0; i < n; i++)
+    {
+        /* Novo registro inicializado com valores neutros: ativo ('0') e sem
+         * encadeamento (proximo = -1). */
+        Dados novoDado;
+        novoDado.removido = '0';
+        novoDado.proximo = -1;
+        novoDado.codEstacao = -1;
+        novoDado.codLinha = -1;
+        novoDado.codProxEstacao = -1;
+        novoDado.distProxEstacao = -1;
+        novoDado.codLinhaIntegra = -1;
+        novoDado.codEstIntegra = -1;
+        novoDado.tamNomeEstacao = 0;
+        novoDado.nomeEstacao = NULL;
+        novoDado.tamNomelinha = 0;
+        novoDado.nomeLinha = NULL;
+
+        char valor[100];
+
+        /* codEstacao (chave primaria, obrigatoria). */
+        scanf(" %s", valor);
+        novoDado.codEstacao = atoi(valor);
+
+        if (arvore_buscar(indice, &cabArvore, novoDado.codEstacao) != -1) {
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF); /* limpa o buffer de entrada */
+            continue;
+        }
+
+        /* nomeEstacao (obrigatorio; pode vir entre aspas). */
+        ScanQuoteString(valor);
+        novoDado.tamNomeEstacao = strlen(valor);
+        novoDado.nomeEstacao = (char *)malloc((strlen(valor) + 1) * sizeof(char));
+        strcpy(novoDado.nomeEstacao, valor);
+
+        /* codLinha (opcional). */
+        scanf(" %s", valor);
+        if (strcmp(valor, "NULO") != 0)
+            novoDado.codLinha = atoi(valor);
+
+        /* nomeLinha (opcional). ScanQuoteString devolve "" para NULO, por isso
+         * tambem testamos string vazia para manter nomeLinha nulo. */
+        ScanQuoteString(valor);
+        if (strcmp(valor, "NULO") != 0 && valor[0] != '\0')
+        {
+            novoDado.tamNomelinha = strlen(valor);
+            novoDado.nomeLinha = (char *)malloc((strlen(valor) + 1) * sizeof(char));
+            strcpy(novoDado.nomeLinha, valor);
+        }
+
+        /* codProxEstacao (opcional) - quando presente, forma um par. */
+        scanf(" %s", valor);
+        if (strcmp(valor, "NULO") != 0)
+        {
+            novoDado.codProxEstacao = atoi(valor);
+            cabDados.nroPares++;
+        }
+
+        /* distProxEstacao (opcional). */
+        scanf(" %s", valor);
+        if (strcmp(valor, "NULO") != 0)
+            novoDado.distProxEstacao = atoi(valor);
+
+        /* codLinhaIntegra (opcional). */
+        scanf(" %s", valor);
+        if (strcmp(valor, "NULO") != 0)
+            novoDado.codLinhaIntegra = atoi(valor);
+
+        /* codEstIntegra (opcional). */
+        scanf(" %s", valor);
+        if (strcmp(valor, "NULO") != 0)
+            novoDado.codEstIntegra = atoi(valor);
+
+        /* Conta uma nova estacao apenas se o nome ainda nao estiver ativo no
+         * arquivo (simetrico a remocao em delete_from). */
+        if (!tem_estacao_ativa(dados, cabDados.proxRRN, novoDado.nomeEstacao))
+            cabDados.nroEstacoes++;
+
+        /* Decide onde gravar o registro. */
+        if (cabDados.topo == -1)
+        {
+            /* Pilha de removidos vazia: anexa ao final, gerando um novo RRN. */
+            fseek(dados, 0, SEEK_END);
+            cabDados.proxRRN++;
+            arvore_inserir(indice, &cabArvore, novoDado.codEstacao, (int)(TAM_CABECALHO + (long)TAM_REGISTRO * (cabDados.proxRRN - 1)));
+        }
+        else
+        {
+            /* Reaproveita o slot do topo da pilha de removidos.
+             * Posiciona no campo 'proximo' (apos o byte de removido) para
+             * desempilhar: o novo topo passa a ser o 'proximo' do slot reusado. */
+            int rrnReuso = cabDados.topo;
+            fseek(dados, TAM_CABECALHO + (long)TAM_REGISTRO * rrnReuso + 1, SEEK_SET);
+            int proximo;
+            fread(&proximo, sizeof(int), 1, dados);
+            cabDados.topo = proximo;
+            if (rrnReuso == proximo) {
+                cabDados.nroEstacoes--;
+                cabDados.nroPares--;
+            }
+            /* Volta ao inicio do slot: foram lidos removido(1)+proximo(4)=5 bytes. */
+            fseek(dados, -5, SEEK_CUR);
+            arvore_inserir(indice, &cabArvore, novoDado.codEstacao, (int)(TAM_CABECALHO + (long)TAM_REGISTRO * rrnReuso));
+        }
+
+        /* Gravacao direta em disco do registro de tamanho fixo (80 bytes). */
+        fwrite(&novoDado.removido, sizeof(char), 1, dados);
+        fwrite(&novoDado.proximo, sizeof(int), 1, dados);
+        fwrite(&novoDado.codEstacao, sizeof(int), 1, dados);
+        fwrite(&novoDado.codLinha, sizeof(int), 1, dados);
+        fwrite(&novoDado.codProxEstacao, sizeof(int), 1, dados);
+        fwrite(&novoDado.distProxEstacao, sizeof(int), 1, dados);
+        fwrite(&novoDado.codLinhaIntegra, sizeof(int), 1, dados);
+        fwrite(&novoDado.codEstIntegra, sizeof(int), 1, dados);
+        fwrite(&novoDado.tamNomeEstacao, sizeof(int), 1, dados);
+        fwrite(novoDado.nomeEstacao, sizeof(char), novoDado.tamNomeEstacao, dados);
+        fwrite(&novoDado.tamNomelinha, sizeof(int), 1, dados);
+        fwrite(novoDado.nomeLinha, sizeof(char), novoDado.tamNomelinha, dados);
+
+        /* Completa o registro ate 80 bytes com lixo '$'. */
+        int usados = TAM_FIXO_REGISTRO + novoDado.tamNomeEstacao + novoDado.tamNomelinha;
+        for (int j = 0; j < TAM_REGISTRO - usados; j++)
+            fputc('$', dados);
+
+        /* Libera as strings alocadas para este registro. */
+        free(novoDado.nomeEstacao);
+        free(novoDado.nomeLinha);
+    }
+
+    cabDados.status = '1';
+    fseek(dados, 0, SEEK_SET);
+    escreverCabecalho(&cabDados, dados);
+    cabArvore.status = '1';
+    cabecalhoArvore_escrever(&cabArvore, indice);
+
+    fclose(dados);
+    fclose(indice);
+    BinarioNaTela(arquivoDados);
+    BinarioNaTela(arquivoIndice);
+}
+
+void delete_arvore(char *arquivoDados, char *arquivoIndice, int n) {
+    FILE *dados;
+}
