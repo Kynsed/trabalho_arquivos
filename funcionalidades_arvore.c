@@ -146,6 +146,85 @@ static void busca_sequencial(FILE *dados, int proxRRN, char vals[8][50])
         printf("Registro inexistente.\n");
 }
 
+static void remocao_logica(FILE *dados, Cabecalho *cabDados, 
+                                        Dados *data, int rrn)
+{
+    /* Marca como removido e encadeia na pilha de removidos. */
+    char removido = '1';
+    fwrite(&removido, sizeof(char), 1, dados);
+    fwrite(&cabDados->topo, sizeof(int), 1, dados); /* proximo = topo antigo */
+    cabDados->topo = rrn;                           /* novo topo */
+
+    /* Atualiza contadores do cabecalho. */
+    if (data->codProxEstacao != -1)
+        cabDados->nroPares--;
+    if (!tem_estacao_ativa(dados, cabDados->proxRRN, data->nomeEstacao))
+        cabDados->nroEstacoes--;
+}
+
+static void delete_por_indice(FILE *dados, FILE *indice, Cabecalho *cabDados, CabecalhoArvoreB *cabArvore, char vals[8][50])
+{
+    int chave = atoi(vals[0]);
+
+    /* Consulta o indice: obtem o byte offset do registro no arquivo de dados. */
+    int prByte = arvore_buscar(indice, cabArvore, chave);
+    if (prByte == -1) {return;}
+
+    /* PR ja e o offset em bytes: posiciona diretamente no registro. */
+    fseek(dados, prByte, SEEK_SET);
+
+    Dados data;
+    if (!data_reader(&data, dados)) {return;}
+
+    /* Valida remocao logica e os criterios adicionais (alem da chave). */
+    if (data.removido == '0' && match_registro(&data, vals))
+    {
+        fseek(dados, prByte, SEEK_SET);
+        int rrn = (prByte - TAM_CABECALHO) / TAM_REGISTRO;
+        remocao_logica(dados, cabDados, &data, rrn);
+        delete_chave(indice, cabArvore, data.codEstacao);
+    }
+
+    if (data.nomeEstacao) free(data.nomeEstacao);
+    if (data.nomeLinha) free(data.nomeLinha);
+}
+
+static void delete_sequencial(FILE *dados, FILE *indice, Cabecalho *cabDados,
+                            CabecalhoArvoreB *cabArvore, char vals[8][50])
+{
+    /* Posiciona no primeiro registro (logo apos o cabecalho). */
+    fseek(dados, TAM_CABECALHO, SEEK_SET);
+
+    for (int i = 0; i < cabDados->proxRRN; i++)
+    {
+        Dados data;
+        if (!data_reader(&data, dados))
+            break;
+
+        /* Pula registros logicamente removidos. */
+        if (data.removido == '1')
+        {
+            if (data.nomeEstacao) free(data.nomeEstacao);
+            if (data.nomeLinha) free(data.nomeLinha);
+            continue;
+        }
+
+        if (match_registro(&data, vals))
+        {
+            fseek(dados, TAM_CABECALHO + (long)TAM_REGISTRO * i, SEEK_SET);
+
+            remocao_logica(dados, cabDados, &data, i);
+            delete_chave(indice, cabArvore, data.codEstacao);
+
+            /* Volta para a posicao de leitura do proximo registro. */
+            fseek(dados, TAM_REGISTRO - 5, SEEK_CUR);
+        }
+
+        if (data.nomeEstacao) free(data.nomeEstacao);
+        if (data.nomeLinha) free(data.nomeLinha);
+    }
+}
+
 /*
  * [7] criar_indice_arvore
  * Le os RRNs do arquivo de dados e insere, um a um, a chave codEstacao dos
@@ -262,8 +341,10 @@ void select_where(char *arquivoDados, char *arquivoIndice, int n)
         /* codEstacao presente => usa o indice arvore-B. */
         if (vals[0][0] != '\0')
         {
-            if (!indiceOk)
+            if (!indiceOk){
                 printf("Falha no processamento do arquivo.\n");
+                // por que o programa não encerra aqui?
+            }
             else
                 busca_por_indice(dados, &cabArvore, indice, vals);
         }
@@ -283,17 +364,16 @@ void select_where(char *arquivoDados, char *arquivoIndice, int n)
 
 void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
     FILE *dados;
-
     /* O arquivo de dados e sempre necessario. */
     if (arquivoDados == NULL || !(dados = fopen(arquivoDados, "rb+")))
     {
-        printf("Falha no processamento do arquivo1.\n");
+        printf("Falha no processamento do arquivo.\n");
         return;
     }
     Cabecalho cabDados;
     if (!header_reader(&cabDados, dados))
     {
-        printf("Falha no processamento do arquivo2.\n");
+        printf("Falha no processamento do arquivo.\n");
         fclose(dados);
         return;
     }
@@ -301,14 +381,14 @@ void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
     FILE *indice;
     if (arquivoIndice == NULL || !(indice = fopen(arquivoIndice, "rb+")))
     {
-        printf("Falha no processamento do arquivo3.\n");
+        printf("Falha no processamento do arquivo.\n");
         fclose(dados);
         return;
     }
     CabecalhoArvoreB cabArvore;
     if (!cabecalhoArvore_ler(&cabArvore, indice))
     {
-        printf("Falha no processamento do arquivo4.\n");
+        printf("Falha no processamento do arquivo.\n");
         fclose(dados);
         fclose(indice);
         return;
@@ -465,4 +545,72 @@ void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
 
 void delete_arvore(char *arquivoDados, char *arquivoIndice, int n) {
     FILE *dados;
+    /* O arquivo de dados e sempre necessario. */
+    if (arquivoDados == NULL || !(dados = fopen(arquivoDados, "rb+")))
+    {
+        printf("Falha no processamento do arquivo1.\n");
+        return;
+    }
+    Cabecalho cabDados;
+    if (!header_reader(&cabDados, dados))
+    {
+        printf("Falha no processamento do arquivo2.\n");
+        fclose(dados);
+        return;
+    }
+
+    FILE *indice;
+    if (arquivoIndice == NULL || !(indice = fopen(arquivoIndice, "rb+")))
+    {
+        printf("Falha no processamento do arquivo3.\n");
+        fclose(dados);
+        return;
+    }
+    CabecalhoArvoreB cabArvore;
+    if (!cabecalhoArvore_ler(&cabArvore, indice))
+    {
+        printf("Falha no processamento do arquivo4.\n");
+        fclose(dados);
+        fclose(indice);
+        return;
+    }
+
+    /* Marca os arquivos como inconsistentes enquanto a insercao acontece. */
+    char status = '0';
+    fseek(dados, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, dados);
+    fseek(indice, 0, SEEK_SET);
+    fwrite(&status, sizeof(char), 1, indice);
+
+    /* Processa cada uma das n remocoes fazendo uma busca segundo a funcionalidade [8]. */
+    for (int i = 0; i < n; i++)
+    {
+        int m;
+        scanf(" %d", &m);
+
+        char vals[8][50];
+        ler_criterios(m, vals);
+
+        /* codEstacao presente => usa o indice arvore-B. */
+        if (vals[0][0] != '\0')
+        {
+            delete_por_indice(dados, indice, &cabDados, &cabArvore, vals);
+        }
+        else
+        {
+            /* Demais campos => percorre o arquivo de dados (func. [3]). */
+            delete_sequencial(dados, indice, &cabDados, &cabArvore, vals);
+        }
+    }
+
+    cabDados.status = '1';
+    fseek(dados, 0, SEEK_SET);
+    escreverCabecalho(&cabDados, dados);
+    cabArvore.status = '1';
+    cabecalhoArvore_escrever(&cabArvore, indice);
+
+    fclose(dados);
+    fclose(indice);
+    BinarioNaTela(arquivoDados);
+    BinarioNaTela(arquivoIndice);
 }

@@ -28,7 +28,7 @@ void criar_indice_arvore(char *arquivoDados, char *arquivoIndice);
  * indice arvore-B; caso contrario, percorre o arquivo de dados (func. [3]).
  */
 void select_where(char *arquivoDados, char *arquivoIndice, int n);
-
-void insert_arvore(char *arquivoDado, char *arquivoIndice, int n);
+void insert_arvore(char *arquivoDados, char *arquivoIndice, int n);
+void delete_arvore(char *arquivoDados, char *arquivoIndice, int n);
 
 #endif /* FUNCIONALIDADES_ARVORE_H */

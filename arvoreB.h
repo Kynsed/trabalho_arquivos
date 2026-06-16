@@ -97,5 +97,7 @@ void arvore_inserir(FILE *arq, CabecalhoArvoreB *cab, int chave, int pr);
  * correspondente, ou -1 se a chave nao existe no indice.
  */
 int arvore_buscar(FILE *arq, CabecalhoArvoreB *cab, int chave);
+int arvore_buscar_no(FILE *arq, CabecalhoArvoreB *cab, NoArvoreB *no, int chave);
+void delete_chave(FILE *arq, CabecalhoArvoreB *cab, int chave);
 
 #endif /* ARVOREB_H */

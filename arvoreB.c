@@ -14,6 +14,12 @@ void cabecalhoArvore_inicializar(CabecalhoArvoreB *cab)
     cab->nroNos = 0;
 }
 
+/*
+ * Inicializa o cabecalho da árvore em memória para uma árvore vazia.
+ * Comentário: Este procedimento seta o arquivo como inconsistente ('0')
+ * até que todos os dados sejam gravados e o cabeçalho seja reescrito.
+ */
+
 /* Le o cabecalho do indice e verifica a consistencia. */
 int cabecalhoArvore_ler(CabecalhoArvoreB *cab, FILE *arq)
 {
@@ -32,6 +38,11 @@ int cabecalhoArvore_ler(CabecalhoArvoreB *cab, FILE *arq)
 
     return (cab->status == '1');
 }
+
+/*
+ * Lê o cabeçalho do arquivo de índice. Retorna 1 se o arquivo estiver
+ * consistente ('1'), caso contrário retorna 0.
+ */
 
 /* Grava o cabecalho do indice campo a campo, na ordem da especificacao. */
 void cabecalhoArvore_escrever(CabecalhoArvoreB *cab, FILE *arq)
@@ -67,14 +78,346 @@ void noArvore_inicializar(NoArvoreB *no)
         no->P[i] = -1;
 }
 
+static void copia_no(NoArvoreB *no1, NoArvoreB *no2)
+{
+    no1->removido = no2->removido;
+    no1->proximo = no2->proximo;
+    no1->tipoNo = no2->tipoNo;
+    no1->nroChaves = no2->nroChaves;
+
+    for (int i = 0; i < MAX_CHAVES; i++)
+    {
+        no1->C[i] = no2->C[i];
+        no1->PR[i] = no2->PR[i];
+    }
+    for (int i = 0; i < MAX_FILHOS; i++)
+        no1->P[i] = no2->P[i];
+}
+
+/*
+ * Inicializa um nó vazio na memória: marca como ativo, folha e zera todos
+ * os campos de chaves e ponteiros com -1. Usado antes de gravar um novo nó
+ * no disco ou ao construir nós temporários.
+ */
+
 /* Calcula o byte offset do no de RRN 'rrn' no arquivo de indice. */
 static long offset_no(int rrn)
 {
     return (long)TAM_CABECALHO_ARVORE + (long)TAM_NO_ARVORE * rrn;
 }
 
-/* Le um no (53 bytes) do disco em uma unica leitura e extrai os campos.
- * Uma so chamada de I/O (1 fseek + 1 fread) reduz o custo de acesso. */
+/* Retorna o deslocamento (em bytes) do nó de RRN indicado no arquivo. */
+
+#define MIN_CHAVES ((ORDEM_ARVORE + 1) / 2 - 1)
+
+static int posicao_chave(NoArvoreB *no, int chave)
+{
+    for (int i = 0; i < no->nroChaves; i++)
+    {
+        if (no->C[i] == chave)
+            return i;
+    }
+    return -1;
+}
+
+/*
+ * Escolhe o índice do ponteiro para descer na busca/inserção.
+ * Retorna i tal que todas chaves em P[i] < chave <= C[i] (conceitualmente).
+ */
+
+static void liberar_no(CabecalhoArvoreB *cabArvore, NoArvoreB *no, int rrn, FILE *arq)
+{
+    no->removido = '1';
+    no->proximo = cabArvore->topo;
+    fseek(arq, offset_no(rrn), SEEK_SET);
+    fwrite(&no->removido, sizeof(char), 1, arq);
+    fwrite(&no->proximo, sizeof(int), 1, arq);
+    cabArvore->topo = rrn;
+    cabArvore->nroNos--;
+}
+
+static int corrigir_underflow(FILE *arq, CabecalhoArvoreB *cabArvore,
+                              NoArvoreB *noPai, int rrnPai, int indexFilho)
+{
+    int rrnFilho = noPai->P[indexFilho];
+    NoArvoreB noFilho;
+    noArvore_ler(&noFilho, rrnFilho, arq);
+
+    // talvez seja inútil
+    if (noFilho.nroChaves >= MIN_CHAVES) {
+        return 0; /* No filho tem chaves suficientes: nada a corrigir. */
+    }
+
+    int rrnEsq = -1;
+    if (indexFilho > 0)
+        rrnEsq = noPai->P[indexFilho - 1];
+
+    int rrnDir = -1;
+    if (indexFilho < noPai->nroChaves)
+        rrnDir = noPai->P[indexFilho + 1];
+
+    /* Analise da quantidade de chaves dos nos irmaos*/
+    NoArvoreB noEsq, noDir;
+    if (rrnEsq != -1)
+        noArvore_ler(&noEsq, rrnEsq, arq);
+    if (rrnDir != -1)
+        noArvore_ler(&noDir, rrnDir, arq);
+
+
+    /* Redistribuicao começando com o irmao a direita*/
+    if (rrnDir != -1 && noDir.nroChaves > MIN_CHAVES)
+    {
+        //while (noFilho.nroChaves < noDir.nroChaves && noDir.nroChaves > MIN_CHAVES)
+        {
+            noFilho.C[noFilho.nroChaves] = noPai->C[indexFilho];
+            noFilho.PR[noFilho.nroChaves] = noPai->PR[indexFilho];
+            noFilho.P[noFilho.nroChaves + 1] = noDir.P[0];
+            noFilho.nroChaves++;
+
+            noPai->C[indexFilho] = noDir.C[0];
+            noPai->PR[indexFilho] = noDir.PR[0];
+
+            for (int j = 0; j < noDir.nroChaves - 1; j++)
+            {
+                noDir.C[j] = noDir.C[j + 1];
+                noDir.PR[j] = noDir.PR[j + 1];
+                noDir.P[j] = noDir.P[j + 1];
+            }
+            noDir.P[noDir.nroChaves - 1] = noDir.P[noDir.nroChaves];
+            noDir.P[noDir.nroChaves] = -1;
+            noDir.C[noDir.nroChaves - 1] = -1;
+            noDir.PR[noDir.nroChaves - 1] = -1;
+            noDir.nroChaves--;
+        }
+
+        noArvore_escrever(&noDir, rrnDir, arq);
+        noArvore_escrever(&noFilho, rrnFilho, arq);
+        noArvore_escrever(noPai, rrnPai, arq);
+        return 0;
+    }
+
+    /* Redistribuicao com irmao da esquerda */
+    if (rrnEsq != -1 && noEsq.nroChaves > MIN_CHAVES)
+    {
+        //while (noEsq.nroChaves - noFilho.nroChaves > 1 && noEsq.nroChaves > MIN_CHAVES)
+        {
+            for (int j = noFilho.nroChaves; j > 0; j--)
+            {
+                noFilho.C[j] = noFilho.C[j - 1];
+                noFilho.PR[j] = noFilho.PR[j - 1];
+                noFilho.P[j + 1] = noFilho.P[j];
+            }
+            noFilho.P[1] = noFilho.P[0];
+
+            noFilho.C[0] = noPai->C[indexFilho - 1];
+            noFilho.PR[0] = noPai->PR[indexFilho - 1];
+            noFilho.P[0] = noEsq.P[noEsq.nroChaves];
+            noFilho.nroChaves++;
+
+            noPai->C[indexFilho - 1] = noEsq.C[noEsq.nroChaves - 1];
+            noPai->PR[indexFilho - 1] = noEsq.PR[noEsq.nroChaves - 1];
+            noEsq.C[noEsq.nroChaves - 1] = -1;
+            noEsq.PR[noEsq.nroChaves - 1] = -1;
+            noEsq.P[noEsq.nroChaves] = -1;
+            noEsq.nroChaves--;
+        }
+
+        noArvore_escrever(&noEsq, rrnEsq, arq);
+        noArvore_escrever(&noFilho, rrnFilho, arq);
+        noArvore_escrever(noPai, rrnPai, arq);
+        return 0;
+    }
+
+    /* Concatenacao a esquerda primeiro */
+    if (rrnEsq != -1)
+    {
+        noEsq.C[noEsq.nroChaves] = noPai->C[indexFilho - 1];
+        noEsq.PR[noEsq.nroChaves] = noPai->PR[indexFilho - 1];
+
+        for (int j = 0; j < noFilho.nroChaves; j++)
+        {
+            noEsq.C[noEsq.nroChaves + 1 + j] = noFilho.C[j];
+            noEsq.PR[noEsq.nroChaves + 1 + j] = noFilho.PR[j];
+            noEsq.P[noEsq.nroChaves + 1 + j] = noFilho.P[j];
+        }
+        noEsq.P[noEsq.nroChaves + noFilho.nroChaves + 1] = noFilho.P[noFilho.nroChaves];
+
+        noEsq.nroChaves += 1 + noFilho.nroChaves;
+
+        for (int j = indexFilho - 1; j < noPai->nroChaves - 1; j++)
+        {
+            noPai->C[j] = noPai->C[j + 1];
+            noPai->PR[j] = noPai->PR[j + 1];
+            noPai->P[j + 1] = noPai->P[j + 2];
+        }
+        noPai->C[noPai->nroChaves - 1] = -1;
+        noPai->PR[noPai->nroChaves - 1] = -1;
+        noPai->P[noPai->nroChaves] = -1;
+        noPai->nroChaves--;
+
+        noArvore_escrever(&noEsq, rrnEsq, arq);
+        noArvore_escrever(noPai, rrnPai, arq);
+        liberar_no(cabArvore, &noFilho, rrnFilho, arq);
+        return (noPai->nroChaves < MIN_CHAVES);
+    }
+
+    /* Concatenacao com o no a direita*/
+    else // if (rrnDir != -1) - else desnecessario, mas mantido para clareza
+    {
+        noFilho.C[noFilho.nroChaves] = noPai->C[indexFilho];
+        noFilho.PR[noFilho.nroChaves] = noPai->PR[indexFilho];
+
+        for (int j = 0; j < noDir.nroChaves; j++)
+        {
+            noFilho.C[noFilho.nroChaves + 1 + j] = noDir.C[j];
+            noFilho.PR[noFilho.nroChaves + 1 + j] = noDir.PR[j];
+            noFilho.P[noFilho.nroChaves + 1 + j] = noDir.P[j];
+        }
+        noFilho.P[noFilho.nroChaves + noDir.nroChaves + 1] = noDir.P[noDir.nroChaves];
+
+        noFilho.nroChaves += 1 + noDir.nroChaves;
+
+        for (int j = indexFilho; j < noPai->nroChaves - 1; j++)
+        {
+            noPai->C[j] = noPai->C[j + 1];
+            noPai->PR[j] = noPai->PR[j + 1];
+            noPai->P[j + 1] = noPai->P[j + 2];
+        }
+        noPai->C[noPai->nroChaves - 1] = -1;
+        noPai->PR[noPai->nroChaves - 1] = -1;
+        noPai->P[noPai->nroChaves] = -1;
+        noPai->nroChaves--;
+
+
+        noArvore_escrever(&noFilho, rrnFilho, arq);
+        noArvore_escrever(noPai, rrnPai, arq);
+        liberar_no(cabArvore, &noDir, rrnDir, arq);
+        return (noPai->nroChaves < MIN_CHAVES);
+    }
+}
+
+/* Essa rotina remove a chave e, quando necessário, sinaliza se ocorreu underflow em um filho 
+ * (retornando 1 para forçar correção a partir do pai).*/
+static int delete_chave_internal(FILE *arq, CabecalhoArvoreB *cab, int rrn, int chave)
+{
+    if (rrn == -1)
+        return 0;
+
+    NoArvoreB no;
+    noArvore_ler(&no, rrn, arq);
+
+    int pos = posicao_chave(&no, chave);
+    if (no.tipoNo == NO_FOLHA)
+    {
+        if (pos == -1)
+            return 0;
+
+        /* shift das chaves*/
+        for (int j = pos; j < no.nroChaves - 1; j++)
+        {
+            no.C[j] = no.C[j + 1];
+            no.PR[j] = no.PR[j + 1];
+        }
+        no.C[no.nroChaves - 1] = -1;
+        no.PR[no.nroChaves - 1] = -1;
+        no.nroChaves--;
+
+        noArvore_escrever(&no, rrn, arq);
+        return (no.nroChaves < MIN_CHAVES);
+    }
+
+    int childIndex;
+    int childUnderflow = 0;
+
+    if (pos != -1)
+    {
+        /* busca o sucessor */
+        int sucessorRrn = no.P[pos + 1];
+        NoArvoreB sucessor;
+        noArvore_ler(&sucessor, sucessorRrn, arq);
+        while (sucessor.tipoNo != NO_FOLHA)
+        {
+            sucessorRrn = sucessor.P[0];
+            noArvore_ler(&sucessor, sucessorRrn, arq);
+        }
+
+        no.C[pos] = sucessor.C[0];
+        no.PR[pos] = sucessor.PR[0];
+        noArvore_escrever(&no, rrn, arq);
+
+        childUnderflow = delete_chave_internal(arq, cab, no.P[pos + 1], no.C[pos]);
+        if (childUnderflow){
+            return corrigir_underflow(arq, cab, &no, rrn, pos + 1);
+        }
+        return 0;
+    }
+
+    childIndex = 0;
+    while (childIndex < no.nroChaves && chave > no.C[childIndex])
+        childIndex++;
+    childUnderflow = delete_chave_internal(arq, cab, no.P[childIndex], chave);
+    if (childUnderflow) {
+        return corrigir_underflow(arq, cab, &no, rrn, childIndex);
+    }
+
+    return 0;
+}
+
+/* Funcao principal para deletar uma chave na ArvoreB */
+void delete_chave(FILE *arq, CabecalhoArvoreB *cab, int chave)
+{
+    delete_chave_internal(arq, cab, cab->noRaiz, chave);
+
+    /* Recarrega a raiz para inspecionar seu estado após a remoção */
+    NoArvoreB raiz;
+    noArvore_ler(&raiz, cab->noRaiz, arq);
+
+    /* Se a raiz ficou sem chaves, tratamos a redução de altura ou remoção */
+    if (raiz.nroChaves == 0)
+    {
+        /*
+         * Raiz com um filho: promove o filho para nova raiz (diminuicao da altura da arvore).
+        */
+        if (raiz.P[0] != -1)
+        {
+            int novoRaizRRN = raiz.P[0];
+            NoArvoreB novoRaiz;
+
+            /* Leitura do filho para determinar a tipagem*/
+            noArvore_ler(&novoRaiz, novoRaizRRN, arq);
+            novoRaiz.tipoNo = (novoRaiz.P[0] == -1) ? NO_FOLHA : NO_RAIZ;
+            noArvore_escrever(&novoRaiz, novoRaizRRN, arq);
+            liberar_no(cab, &raiz, cab->noRaiz, arq);
+            cab->noRaiz = novoRaizRRN;
+        }
+        else
+        {
+            /* Raiz sem filhos e sem chaves: árvore fica vazia */
+            liberar_no(cab, &raiz, cab->noRaiz, arq);
+            cab->noRaiz = -1;
+            cab->nroNos = 0;
+        }
+
+    }
+    else if (raiz.P[0] != -1)
+    {
+        /* Ainda tem filhos: marca corretamente como raiz interna */
+        raiz.tipoNo = NO_RAIZ;
+        noArvore_escrever(&raiz, cab->noRaiz, arq);
+    }
+    else
+    {
+        /* Não há filhos: a raiz é uma folha */
+        raiz.tipoNo = NO_FOLHA;
+        noArvore_escrever(&raiz, cab->noRaiz, arq);
+    }
+}
+
+/* ========================================================================
+ *  Busca na arvore-B
+ * ====================================================================== */
+
+ /* Uma so chamada de I/O (1 fseek + 1 fread) reduz o custo de acesso. */
 void noArvore_ler(NoArvoreB *no, int rrn, FILE *arq)
 {
     unsigned char buf[TAM_NO_ARVORE]; /* buffer de pilha; sem heap */
@@ -103,24 +446,32 @@ void noArvore_ler(NoArvoreB *no, int rrn, FILE *arq)
     }
 }
 
-/* Grava um no (53 bytes) no disco, campo a campo (restricao [6]). */
+/* Grava um no (53 bytes) no disco usando buffer para evitar padding da struct. */
 void noArvore_escrever(NoArvoreB *no, int rrn, FILE *arq)
 {
+    unsigned char buf[TAM_NO_ARVORE];
+    int off = 0;
+
     fseek(arq, offset_no(rrn), SEEK_SET);
 
-    fwrite(&no->removido, sizeof(char), 1, arq);
-    fwrite(&no->proximo, sizeof(int), 1, arq);
-    fwrite(&no->tipoNo, sizeof(int), 1, arq);
-    fwrite(&no->nroChaves, sizeof(int), 1, arq);
+    memcpy(buf + off, &no->removido, sizeof(char)); off += sizeof(char);
+    memcpy(buf + off, &no->proximo, sizeof(int));   off += sizeof(int);
+    memcpy(buf + off, &no->tipoNo, sizeof(int));     off += sizeof(int);
+    memcpy(buf + off, &no->nroChaves, sizeof(int));  off += sizeof(int);
 
-    /* Intercala chave e referencia, conforme a representacao grafica. */
+    /* Chaves e referencias intercaladas: C1,PR1,C2,PR2,C3,PR3. */
     for (int i = 0; i < MAX_CHAVES; i++)
     {
-        fwrite(&no->C[i], sizeof(int), 1, arq);
-        fwrite(&no->PR[i], sizeof(int), 1, arq);
+        memcpy(buf + off, &no->C[i], sizeof(int));  off += sizeof(int);
+        memcpy(buf + off, &no->PR[i], sizeof(int)); off += sizeof(int);
     }
+    /* Ponteiros para subarvores: P1,P2,P3,P4. */
     for (int i = 0; i < MAX_FILHOS; i++)
-        fwrite(&no->P[i], sizeof(int), 1, arq);
+    {
+        memcpy(buf + off, &no->P[i], sizeof(int)); off += sizeof(int);
+    }
+
+    fwrite(buf, TAM_NO_ARVORE, 1, arq);
 }
 
 /* ========================================================================
@@ -368,4 +719,29 @@ int arvore_buscar(FILE *arq, CabecalhoArvoreB *cab, int chave)
     }
 
     return -1; /* chave inexistente */
+}
+
+int arvore_buscar_no(FILE *arq, CabecalhoArvoreB *cab, NoArvoreB *no, int chave)
+{
+    int rrn = cab->noRaiz;
+
+    /* Percorre um caminho da raiz ate uma folha. */
+    while (rrn != -1)
+    {
+        noArvore_ler(no, rrn, arq);
+
+        /* Localiza a primeira chave >= 'chave' no no. */
+        int i = 0;
+        while (i < no->nroChaves && chave > no->C[i])
+            i++;
+
+        /* Chave encontrada neste no. */
+        if (i < no->nroChaves && no->C[i] == chave)
+            break;
+
+        /* Desce para a subarvore apropriada (-1 em folha encerra a busca). */
+        rrn = no->P[i];
+    }
+
+    return rrn; /* chave inexistente */
 }
