@@ -9,13 +9,6 @@
  *  main.c
  *  Ponto de entrada do programa. Le a opcao da funcionalidade na entrada
  *  padrao e delega para o modulo de funcionalidades correspondente.
- *
- *  Opcoes:
- *    [1] lerCsv      - gera o arquivo binario a partir de um CSV
- *    [2] select_from - exibe todos os registros validos
- *    [3] busca       - busca registros por criterios
- *    [4] delete_from - remocao logica de registros
- *    [6] update      - atualizacao de campos de registros
  * ============================================================================
  */
 
