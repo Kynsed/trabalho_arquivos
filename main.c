@@ -72,12 +72,12 @@ int main(void)
             select_where(entradaBin, entradaArvore, qnt);
             break;
 
-        case 9:
+        case 9: /* INSERT INTO - insere registro no arquivo de dados e a chave no indice da Arvore-B */
             scanf(" %s %s %d", entradaBin, entradaArvore, &qnt);
             insert_arvore(entradaBin, entradaArvore, qnt);
             break;
 
-        case 10:
+        case 10: /* DELETE - busca um registro (usa indice quando ha codEstacao) e o apaga logicamente, também remove a chave do indice */
             scanf(" %s %s %d", entradaBin, entradaArvore, &qnt);
             delete_arvore(entradaBin, entradaArvore, qnt);
             break;
