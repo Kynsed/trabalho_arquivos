@@ -146,6 +146,7 @@ static void busca_sequencial(FILE *dados, int proxRRN, char vals[8][50])
         printf("Registro inexistente.\n");
 }
 
+/* Remove logicamente 1 registro do arquivo de dados. */
 static void remocao_logica(FILE *dados, Cabecalho *cabDados, 
                                         Dados *data, int rrn)
 {
@@ -162,6 +163,9 @@ static void remocao_logica(FILE *dados, Cabecalho *cabDados,
         cabDados->nroEstacoes--;
 }
 
+/* Auxiliar de [10]. Checa se os criterios de busca alem do codEstacao estao presentes no registro e,
+ * se sim, remove logicamente o registro e deleta a chave do indice.
+ */
 static void delete_por_indice(FILE *dados, FILE *indice, Cabecalho *cabDados, CabecalhoArvoreB *cabArvore, char vals[8][50])
 {
     int chave = atoi(vals[0]);
@@ -189,6 +193,9 @@ static void delete_por_indice(FILE *dados, FILE *indice, Cabecalho *cabDados, Ca
     if (data.nomeLinha) free(data.nomeLinha);
 }
 
+/* Auxiliar de [10]. Busca em cada registro do arquivo de dados, se encontra,
+ * remove logicamente e atualiza o indice da Arvore-B.
+ */
 static void delete_sequencial(FILE *dados, FILE *indice, Cabecalho *cabDados,
                             CabecalhoArvoreB *cabArvore, char vals[8][50])
 {
@@ -362,9 +369,12 @@ void select_where(char *arquivoDados, char *arquivoIndice, int n)
     fclose(dados);
 }
 
+/*
+ * [9] insert_into
+ * Le 'n' registros da entrada padrao, os insere no arquivo de dados e atualiza o indice da Arvore-B.
+*/
 void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
     FILE *dados;
-    /* O arquivo de dados e sempre necessario. */
     if (arquivoDados == NULL || !(dados = fopen(arquivoDados, "rb+")))
     {
         printf("Falha no processamento do arquivo.\n");
@@ -425,6 +435,7 @@ void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
         scanf(" %s", valor);
         novoDado.codEstacao = atoi(valor);
 
+        /* Se a chave for encontrada no indice, passa para a proxima insercao para nao haver repeticao */
         if (arvore_buscar(indice, &cabArvore, novoDado.codEstacao) != -1) {
             int c;
             while ((c = getchar()) != '\n' && c != EOF); /* limpa o buffer de entrada */
@@ -486,6 +497,7 @@ void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
             /* Pilha de removidos vazia: anexa ao final, gerando um novo RRN. */
             fseek(dados, 0, SEEK_END);
             cabDados.proxRRN++;
+            /* Insere nova chave no indice */
             arvore_inserir(indice, &cabArvore, novoDado.codEstacao, (int)(TAM_CABECALHO + (long)TAM_REGISTRO * (cabDados.proxRRN - 1)));
         }
         else
@@ -504,6 +516,7 @@ void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
             }
             /* Volta ao inicio do slot: foram lidos removido(1)+proximo(4)=5 bytes. */
             fseek(dados, -5, SEEK_CUR);
+            /* Insere nova chave no indice */
             arvore_inserir(indice, &cabArvore, novoDado.codEstacao, (int)(TAM_CABECALHO + (long)TAM_REGISTRO * rrnReuso));
         }
 
@@ -543,9 +556,16 @@ void insert_arvore(char *arquivoDados, char *arquivoIndice, int n) {
     BinarioNaTela(arquivoIndice);
 }
 
+/*
+ * [10] delete
+ * Le 'n' criterios de remocao da entrada padrao, executa uma remocao logica
+ * para cada um dos registros que satisfazem os criterios e atualiza o indice
+ * da Arvore-B. Cada criterio de remocao pode ou nao incluir codEstacao; se
+ * incluir, o indice é usado para localizar o registro a ser removido; se
+ * nao incluir, a remocao é feita por busca sequencial no arquivo de dados.
+ */
 void delete_arvore(char *arquivoDados, char *arquivoIndice, int n) {
     FILE *dados;
-    /* O arquivo de dados e sempre necessario. */
     if (arquivoDados == NULL || !(dados = fopen(arquivoDados, "rb+")))
     {
         printf("Falha no processamento do arquivo1.\n");
@@ -588,17 +608,16 @@ void delete_arvore(char *arquivoDados, char *arquivoIndice, int n) {
         int m;
         scanf(" %d", &m);
 
+        /* vals armazena os criterios de busca */
         char vals[8][50];
         ler_criterios(m, vals);
 
-        /* codEstacao presente => usa o indice arvore-B. */
-        if (vals[0][0] != '\0')
+        if (vals[0][0] != '\0') /* codEstacao presente => usa o indice arvore-B. */
         {
             delete_por_indice(dados, indice, &cabDados, &cabArvore, vals);
         }
-        else
+        else /* Demais campos => percorre o arquivo de dados (func. [3]). */
         {
-            /* Demais campos => percorre o arquivo de dados (func. [3]). */
             delete_sequencial(dados, indice, &cabDados, &cabArvore, vals);
         }
     }

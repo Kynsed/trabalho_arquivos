@@ -23,6 +23,7 @@
 #define MAX_FILHOS (ORDEM_ARVORE)            /* 4 descendentes por no */
 #define TAM_CABECALHO_ARVORE 17              /* bytes do cabecalho do indice */
 #define TAM_NO_ARVORE 53                     /* bytes de um no do indice */
+#define MIN_CHAVES ((ORDEM_ARVORE + 1)/2 - 1)/* Taxa minima de ocupacao de chaves */
 
 /* Valores de tipoNo. */
 #define NO_FOLHA -1          /* no folha (tambem usado quando folha = raiz) */
