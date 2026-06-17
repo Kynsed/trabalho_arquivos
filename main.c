@@ -4,7 +4,7 @@
  * ----------------------------------------------------------------------------
  *  Integrantes:
  *    - <Kelvin Ribeiro Silva>  -  <16302879>
- *    - <Nome completo do aluno 2>  -  <nUSP 2>
+ *    - <Wesley de Brito Sousa>  - <14612350>
  * ----------------------------------------------------------------------------
  *  main.c
  *  Ponto de entrada do programa. Le a opcao da funcionalidade na entrada
@@ -77,7 +77,8 @@ int main(void)
             insert_arvore(entradaBin, entradaArvore, qnt);
             break;
 
-        case 10: /* DELETE - busca um registro (usa indice quando ha codEstacao) e o apaga logicamente, também remove a chave do indice */
+        case 10: /* DELETE - busca um registro (usa indice quando ha codEstacao) e o apaga logicamente,
+                    também remove a chave do indice */
             scanf(" %s %s %d", entradaBin, entradaArvore, &qnt);
             delete_arvore(entradaBin, entradaArvore, qnt);
             break;
