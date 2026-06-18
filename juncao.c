@@ -3,22 +3,16 @@
 #include "registro.h"
 #include "arvoreB.h"
 
-/*
- * EntradaInterna: representacao compacta de um registro do arquivo interno
- * (estacao2) mantida em RAM durante a juncao por loop aninhado. Guarda apenas
- * o necessario: a chave de juncao (codEstacao) e o nome da estacao, que sera
- * exibido como nomeProxEstacao. Evita manter os 80 bytes de cada registro.
- */
+
 typedef struct _entradaInterna {
     int codEstacao;     /* chave de juncao */
     char *nomeEstacao;  /* usado como nomeProxEstacao na saida */
 } EntradaInterna;
 
 /*
- * imprimir_juncao: exibe uma linha de resultado da juncao no formato exigido:
+ * imprimir_juncao: exibe uma linha de resultado da juncao:
  * codEstacao nomeEstacao nomeLinha codProxEstacao nomeProxEstacao
  * Campos do registro externo vem de 'r1'; nomeProxEstacao e o nome do registro
- * casado em estacao2. nomeLinha nulo e exibido como NULO.
  */
 static void imprimir_juncao(Dados *r1, const char *nomeProxEstacao)
 {
@@ -34,11 +28,6 @@ static void imprimir_juncao(Dados *r1, const char *nomeProxEstacao)
 
 /*
  * [11] juncao_loop_aninhado
- * Estrategia: o arquivo interno (estacao2) e lido UMA vez do disco para a RAM,
- * em forma compacta (chave + nome). Assim, o loop interno opera inteiramente
- * em memoria e nao e preciso reposicionar o arquivo interno (fseek) a cada
- * registro do loop externo. O arquivo externo (estacao1) e percorrido de forma
- * sequencial, sem fseek por registro.
  */
 void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2)
 {
@@ -66,8 +55,7 @@ void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2)
         return;
     }
 
-    /* ---- Carrega o arquivo interno (estacao2) em memoria ----
-     * Reserva espaco para, no maximo, proxRRN entradas. */
+    /* Reserva espaco para, no maximo, proxRRN entradas. */
     EntradaInterna *interno = NULL;
     int nInterno = 0;
     if (cab2.proxRRN > 0)
@@ -95,7 +83,7 @@ void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2)
             interno[nInterno].codEstacao = d.codEstacao;
             interno[nInterno].nomeEstacao = d.nomeEstacao; /* transfere a posse */
             nInterno++;
-            if (d.nomeLinha) free(d.nomeLinha); /* nomeLinha nao e usado aqui */
+            if (d.nomeLinha) free(d.nomeLinha);
         }
         else
         {
@@ -105,7 +93,6 @@ void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2)
         }
     }
 
-    /* ---- Loop externo: percorre estacao1 sequencialmente ---- */
     int encontrou = 0;
     fseek(f1, TAM_CABECALHO, SEEK_SET);
     for (int i = 0; i < cab1.proxRRN; i++)
@@ -146,12 +133,7 @@ void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2)
 }
 
 /*
- * [12] juncao_loop_unico
- * Estrategia: percorre estacao1 sequencialmente (loop externo, sem fseek por
- * registro). Para cada registro, consulta o indice arvore-B sobre estacao2 e
- * recupera, no maximo, um registro casado (codEstacao e chave primaria). O uso
- * de RAM e O(1): apenas o registro externo e o registro casado por vez.
- */
+ * [12] juncao_loop_unico */
 void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
                        char *arqIndice)
 {
@@ -183,8 +165,6 @@ void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
         return;
     }
 
-    /* O arquivo de indice abriu, mas precisa estar consistente (status '1').
-     * Quando inconsistente, a mensagem e especifica do indice. */
     if (!cabecalhoArvore_ler(&cabArvore, fIdx))
     {
         printf("Arquivo de indice inconsistente.\n");
@@ -194,7 +174,6 @@ void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
         return;
     }
 
-    /* ---- Loop externo: percorre estacao1 sequencialmente ---- */
     int encontrou = 0;
     fseek(f1, TAM_CABECALHO, SEEK_SET);
     for (int i = 0; i < cab1.proxRRN; i++)
