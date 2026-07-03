@@ -34,4 +34,6 @@ void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2);
 void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
                        char *arqIndice);
 
+void juncao_ordenacao_intercalacao(char *arq1, char *campo1, char *arq2, char *campo2);
+
 #endif /* JUNCAO_H */

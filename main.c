@@ -93,6 +93,18 @@ int main(void)
             break;
         }
 
+        case 13:
+            char campo[100], ordenadoBin[100];
+            scanf(" %s %s %s", entradaBin, campo, ordenadoBin);
+            order_by(entradaBin, campo, ordenadoBin, 1);
+            break;
+
+        case 14:
+            char arq1[100], campo1[100], arq2[100], campo2[100];
+            scanf(" %s %s %s %s", arq1, campo1, arq2, campo2);
+            juncao_ordenacao_intercalacao(arq1, campo1, arq2, campo2);
+            break;
+
         default:
             printf("Escolha inválida.\n");
             break;

@@ -911,3 +911,88 @@ void update(char *arquivoEntrada)
 
     BinarioNaTela(arquivoEntrada);
 }
+
+void order_by(char *arquivoEntrada, char *campo, char *arquivoOrdenado, int imprimir) {
+    FILE *input_file;
+    FILE *output_file;
+
+    if (arquivoEntrada == NULL || !(input_file = fopen(arquivoEntrada, "rb")))
+    {
+        printf("Falha no processamento do arquivo. abertura\n");
+        return;
+    }
+
+    Cabecalho cabecalho;
+
+    if (!header_reader(&cabecalho, input_file))
+    {
+        printf("Falha no processamento do arquivo. cabecalho\n");
+        fclose(input_file);
+        return;
+    }
+
+    Dados *dados = (Dados *)malloc(cabecalho.proxRRN * sizeof(Dados));
+    int validos = 0;
+
+    for (int i = 0; i < cabecalho.proxRRN; i++) {
+        if (!data_reader(&dados[validos], input_file))
+            break;
+
+        if (dados[validos].removido == '1') {
+            if (dados[validos].nomeEstacao) free(dados[validos].nomeEstacao);
+            if (dados[validos].nomeLinha) free(dados[validos].nomeLinha);
+            continue;
+        }
+
+        validos++;
+    }
+
+    fclose(input_file);
+
+    if (arquivoOrdenado == NULL || !(output_file = fopen(arquivoOrdenado, "wb")))
+    {
+        printf("Falha no processamento do arquivo. abertura\n");
+        return;
+    }
+
+    if (strcmp(campo, "codEstacao") == 0) {
+        qsort(dados, validos, sizeof(Dados), compE);
+    } else if (strcmp(campo, "codProxEstacao") == 0) {
+        qsort(dados, validos, sizeof(Dados), compPE);
+    }
+
+    cabecalho.proxRRN = validos;
+    cabecalho.topo = -1;
+    cabecalho.status = '1';
+
+    escreverCabecalho(&cabecalho, output_file);
+
+    for (int i = 0; i < validos; i++) {
+        fwrite(&dados[i].removido, sizeof(char), 1, output_file);
+        fwrite(&dados[i].proximo, sizeof(int), 1, output_file);
+        fwrite(&dados[i].codEstacao, sizeof(int), 1, output_file);
+        fwrite(&dados[i].codLinha, sizeof(int), 1, output_file);
+        fwrite(&dados[i].codProxEstacao, sizeof(int), 1, output_file);
+        fwrite(&dados[i].distProxEstacao, sizeof(int), 1, output_file);
+        fwrite(&dados[i].codLinhaIntegra, sizeof(int), 1, output_file);
+        fwrite(&dados[i].codEstIntegra, sizeof(int), 1, output_file);
+
+        fwrite(&dados[i].tamNomeEstacao, sizeof(int), 1, output_file);
+        fwrite(dados[i].nomeEstacao, sizeof(char), dados[i].tamNomeEstacao, output_file);
+        fwrite(&dados[i].tamNomelinha, sizeof(int), 1, output_file);
+        fwrite(dados[i].nomeLinha, sizeof(char), dados[i].tamNomelinha, output_file);
+
+        int usados = TAM_FIXO_REGISTRO + dados[i].tamNomeEstacao + dados[i].tamNomelinha;
+        for (int j = 0; j < TAM_REGISTRO - usados; j++)
+            fputc('$', output_file);
+
+        if (dados[i].nomeEstacao) free(dados[i].nomeEstacao);
+        if (dados[i].nomeLinha) free(dados[i].nomeLinha);
+    }
+
+    fclose(output_file);
+    free(dados);
+
+    if (imprimir)
+        BinarioNaTela(arquivoOrdenado);
+}

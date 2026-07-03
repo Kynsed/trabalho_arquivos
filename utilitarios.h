@@ -40,4 +40,7 @@ void BinarioNaTela(char *arquivo);
  */
 int tem_estacao_ativa(FILE *input_file, int proxRRN, const char *nome);
 
+int compE(const void *a, const void *b);
+int compPE(const void *a, const void *b);
+
 #endif /* UTILITARIOS_H */

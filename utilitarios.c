@@ -148,3 +148,17 @@ int tem_estacao_ativa(FILE *input_file, int proxRRN, const char *nome)
     fseek(input_file, pos_atual, SEEK_SET); /* restaura posicao */
     return existe;
 }
+
+int compE(const void *a, const void *b) {
+    Dados *d1 = (Dados *)a;
+    Dados *d2 = (Dados *)b;
+
+    return d1->codEstacao - d2->codEstacao;
+}
+
+int compPE(const void *a, const void *b) {
+    Dados *d1 = (Dados *)a;
+    Dados *d2 = (Dados *)b;
+
+    return d1->codProxEstacao - d2->codProxEstacao;
+}

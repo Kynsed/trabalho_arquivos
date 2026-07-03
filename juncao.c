@@ -2,6 +2,7 @@
 #include "cabecalho.h"
 #include "registro.h"
 #include "arvoreB.h"
+#include "funcionalidades.h"
 
 
 typedef struct _entradaInterna {
@@ -167,7 +168,7 @@ void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
 
     if (!cabecalhoArvore_ler(&cabArvore, fIdx))
     {
-        printf("Arquivo de indice inconsistente.\n");
+        printf("Falha no processamento do arquivo.\n");
         fclose(f1);
         fclose(f2);
         fclose(fIdx);
@@ -218,4 +219,87 @@ void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
     fclose(f1);
     fclose(f2);
     fclose(fIdx);
+}
+
+void juncao_ordenacao_intercalacao(char *arq1, char *campo1, char *arq2, char *campo2)
+{
+    (void)campo1;
+    (void)campo2;
+
+    order_by(arq1, "codProxEstacao", arq1, 0);
+    order_by(arq2, "codEstacao", arq2, 0);
+
+    FILE *f1 = fopen(arq1, "rb");
+    FILE *f2 = fopen(arq2, "rb");
+    if (f1 == NULL || f2 == NULL)
+    {
+        printf("Falha no processamento do arquivo.\n");
+        if (f1) fclose(f1);
+        if (f2) fclose(f2);
+        return;
+    }
+
+    Cabecalho cab1, cab2;
+    if (!header_reader(&cab1, f1) || !header_reader(&cab2, f2))
+    {
+        printf("Falha no processamento do arquivo.\n");
+        fclose(f1);
+        fclose(f2);
+        return;
+    }
+
+    int encontrou = 0, i = 0, j = 0, ibuff = -1, jbuff = -1;
+    Dados r1, r2;
+    r1.nomeEstacao = r1.nomeLinha = NULL;
+    r2.nomeEstacao = r2.nomeLinha = NULL;
+
+    while (i < cab1.proxRRN && j < cab2.proxRRN)
+    {
+        if (ibuff != i)
+        {
+            if (r1.nomeEstacao) free(r1.nomeEstacao);
+            if (r1.nomeLinha) free(r1.nomeLinha);
+            fseek(f1, TAM_CABECALHO + i * TAM_REGISTRO, SEEK_SET);
+            if (!data_reader(&r1, f1))
+            break;
+        }
+        if (jbuff != j)
+        {
+            if (r2.nomeEstacao) free(r2.nomeEstacao);
+            if (r2.nomeLinha) free(r2.nomeLinha);
+            fseek(f2, TAM_CABECALHO + j * TAM_REGISTRO, SEEK_SET);
+            if (!data_reader(&r2, f2))
+            break;
+        }
+
+        ibuff = i;
+        jbuff = j;
+
+        if (r1.codProxEstacao < r2.codEstacao)
+        {
+            i++;
+        }
+        else if (r1.codProxEstacao > r2.codEstacao)
+        {
+            j++;
+        }
+        else
+        {
+            imprimir_juncao(&r1, r2.nomeEstacao);
+            encontrou = 1;
+            i++;
+            j++;
+        }
+    }
+
+    if (r1.nomeEstacao) free(r1.nomeEstacao);
+    if (r1.nomeLinha) free(r1.nomeLinha);
+    if (r2.nomeEstacao) free(r2.nomeEstacao);
+    if (r2.nomeLinha) free(r2.nomeLinha);
+
+    if (!encontrou)
+        printf("Registro inexistente.\n");
+
+    fclose(f1);
+    fclose(f2);
 }
