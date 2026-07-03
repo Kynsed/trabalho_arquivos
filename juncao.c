@@ -221,11 +221,14 @@ void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
     fclose(fIdx);
 }
 
+/* [14] juncao com ordenacao e intercalacao */
 void juncao_ordenacao_intercalacao(char *arq1, char *campo1, char *arq2, char *campo2)
 {
+    /* para esse trabalho, os campos nao importam */
     (void)campo1;
     (void)campo2;
 
+    /* ordena arq1 e arq2 e sobrescreve os arquivos originais */
     order_by(arq1, "codProxEstacao", arq1, 0);
     order_by(arq2, "codEstacao", arq2, 0);
 
@@ -248,18 +251,19 @@ void juncao_ordenacao_intercalacao(char *arq1, char *campo1, char *arq2, char *c
         return;
     }
 
+    /* ibuff e jbuff servem para evitar leituras desnecessarias */
     int encontrou = 0, i = 0, j = 0, ibuff = -1, jbuff = -1;
     Dados r1, r2;
     r1.nomeEstacao = r1.nomeLinha = NULL;
     r2.nomeEstacao = r2.nomeLinha = NULL;
 
+    /* merge dos arquivos */
     while (i < cab1.proxRRN && j < cab2.proxRRN)
     {
         if (ibuff != i)
         {
             if (r1.nomeEstacao) free(r1.nomeEstacao);
             if (r1.nomeLinha) free(r1.nomeLinha);
-            fseek(f1, TAM_CABECALHO + i * TAM_REGISTRO, SEEK_SET);
             if (!data_reader(&r1, f1))
             break;
         }
@@ -267,7 +271,6 @@ void juncao_ordenacao_intercalacao(char *arq1, char *campo1, char *arq2, char *c
         {
             if (r2.nomeEstacao) free(r2.nomeEstacao);
             if (r2.nomeLinha) free(r2.nomeLinha);
-            fseek(f2, TAM_CABECALHO + j * TAM_REGISTRO, SEEK_SET);
             if (!data_reader(&r2, f2))
             break;
         }

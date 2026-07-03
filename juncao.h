@@ -34,6 +34,13 @@ void juncao_loop_aninhado(char *arq1, char *campo1, char *arq2, char *campo2);
 void juncao_loop_unico(char *arq1, char *campo1, char *arq2, char *campo2,
                        char *arqIndice);
 
+/*
+ * [14] juncao_ordenacao_intercalacao
+ * Realiza a autojuncao por ordenacao e intercalacao: ordena arq1 (campo codProxEstacao) e arq2 (campo codEstacao)
+ * e percorre ambos em paralelo, imprimindo os registros casados. Nao usa indice.
+ * Imprime "Registro inexistente." quando a juncao nao produz nenhum registro
+ * e "Falha no processamento do arquivo." em caso de erro de abertura/consistencia.
+ */
 void juncao_ordenacao_intercalacao(char *arq1, char *campo1, char *arq2, char *campo2);
 
 #endif /* JUNCAO_H */

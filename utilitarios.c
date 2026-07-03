@@ -149,6 +149,7 @@ int tem_estacao_ativa(FILE *input_file, int proxRRN, const char *nome)
     return existe;
 }
 
+/* Auxiliar de [13], comparador de codEstacao */
 int compE(const void *a, const void *b) {
     Dados *d1 = (Dados *)a;
     Dados *d2 = (Dados *)b;
@@ -156,6 +157,7 @@ int compE(const void *a, const void *b) {
     return d1->codEstacao - d2->codEstacao;
 }
 
+/* Auxiliar de [13], comparador de codProxEstacao */
 int compPE(const void *a, const void *b) {
     Dados *d1 = (Dados *)a;
     Dados *d2 = (Dados *)b;

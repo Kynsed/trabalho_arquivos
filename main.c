@@ -93,13 +93,13 @@ int main(void)
             break;
         }
 
-        case 13:
+        case 13: /* ORDER BY codEstacao ou codProxEstacao*/
             char campo[100], ordenadoBin[100];
             scanf(" %s %s %s", entradaBin, campo, ordenadoBin);
             order_by(entradaBin, campo, ordenadoBin, 1);
             break;
 
-        case 14:
+        case 14: /* JOIN por ordenacao e intercalacao (autojuncao, sem indice) */
             char arq1[100], campo1[100], arq2[100], campo2[100];
             scanf(" %s %s %s %s", arq1, campo1, arq2, campo2);
             juncao_ordenacao_intercalacao(arq1, campo1, arq2, campo2);

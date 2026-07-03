@@ -33,6 +33,7 @@ void inserir(char *arquivoEntrada, int qntInsercoes);
 /* [6] Atualiza campos dos registros que casam com os criterios informados. */
 void update(char *arquivoEntrada);
 
+/* [13] Ordena de forma crescente o registros de acordo com o campo passado */
 void order_by(char *arquivoEntrada, char *campo, char *arquivoOrdenado, int imprimir);
 
 #endif /* FUNCIONALIDADES_H */

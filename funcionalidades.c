@@ -912,6 +912,12 @@ void update(char *arquivoEntrada)
     BinarioNaTela(arquivoEntrada);
 }
 
+/*
+ * [13] order_by
+ * Ordena os registros validos do arquivo binario de entrada pelo campo
+ * especificado (codEstacao ou codProxEstacao) e grava o resultado em
+ * arquivoOrdenado. Se imprimir=1, exibe BinarioNaTela.
+ */
 void order_by(char *arquivoEntrada, char *campo, char *arquivoOrdenado, int imprimir) {
     FILE *input_file;
     FILE *output_file;
@@ -931,7 +937,10 @@ void order_by(char *arquivoEntrada, char *campo, char *arquivoOrdenado, int impr
         return;
     }
 
+    /* Armazenamento na memoria de no maximo proxRRN */
     Dados *dados = (Dados *)malloc(cabecalho.proxRRN * sizeof(Dados));
+
+    /* contagem de registros validos*/
     int validos = 0;
 
     for (int i = 0; i < cabecalho.proxRRN; i++) {
@@ -949,12 +958,15 @@ void order_by(char *arquivoEntrada, char *campo, char *arquivoOrdenado, int impr
 
     fclose(input_file);
 
+    /* Fase de leitura finalizada. Inicio da fase de escrita*/
+
     if (arquivoOrdenado == NULL || !(output_file = fopen(arquivoOrdenado, "wb")))
     {
         printf("Falha no processamento do arquivo. abertura\n");
         return;
     }
 
+    /* Quicksort com comparadores especificos */
     if (strcmp(campo, "codEstacao") == 0) {
         qsort(dados, validos, sizeof(Dados), compE);
     } else if (strcmp(campo, "codProxEstacao") == 0) {
@@ -993,6 +1005,7 @@ void order_by(char *arquivoEntrada, char *campo, char *arquivoOrdenado, int impr
     fclose(output_file);
     free(dados);
 
+    /* Isso existe pois nao queremos impressao quando a funcionalidade [14] chama essa */
     if (imprimir)
         BinarioNaTela(arquivoOrdenado);
 }

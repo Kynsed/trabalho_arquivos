@@ -40,7 +40,16 @@ void BinarioNaTela(char *arquivo);
  */
 int tem_estacao_ativa(FILE *input_file, int proxRRN, const char *nome);
 
+/*
+ * compE (auxiliar de [13]): comparador para qsort, usado para
+ * ordenar registros validos de acordo com codEstacao.
+ */
 int compE(const void *a, const void *b);
+
+/*
+ * compPE (auxiliar de [13]): comparador para qsort, usado para
+ * ordenar registros validos de acordo com codProxEstacao.
+ */
 int compPE(const void *a, const void *b);
 
 #endif /* UTILITARIOS_H */
