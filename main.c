@@ -78,20 +78,16 @@ int main(void)
             break;
 
         case 11: /* JOIN por loop aninhado (autojuncao, sem indice) */
-        {
             char arq1[100], campo1[100], arq2[100], campo2[100];
             scanf(" %s %s %s %s", arq1, campo1, arq2, campo2);
             juncao_loop_aninhado(arq1, campo1, arq2, campo2);
             break;
-        }
 
         case 12: /* JOIN por loop unico (autojuncao usando indice arvore-B) */
-        {
             char arq1[100], campo1[100], arq2[100], campo2[100], idx[100];
             scanf(" %s %s %s %s %s", arq1, campo1, arq2, campo2, idx);
             juncao_loop_unico(arq1, campo1, arq2, campo2, idx);
             break;
-        }
 
         case 13: /* ORDER BY codEstacao ou codProxEstacao*/
             char campo[100], ordenadoBin[100];
